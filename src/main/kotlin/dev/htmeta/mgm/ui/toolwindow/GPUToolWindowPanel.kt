@@ -98,6 +98,7 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
                     else -> 100L
                 }
                 GPUSettingsState.getInstance().state.refreshIntervalMs = ms
+                GPUMonitoringService.getInstance().restartMonitoring()
             }
         }
 

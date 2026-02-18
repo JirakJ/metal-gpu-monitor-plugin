@@ -84,6 +84,14 @@ class GPUMonitoringService : Disposable {
     fun toggleMonitoring() {
         if (_isMonitoring) stopMonitoring() else startMonitoring()
     }
+
+    fun restartMonitoring() {
+        if (_isMonitoring) {
+            LOG.info("Restarting monitoring with new interval: ${GPUSettingsState.getInstance().state.refreshIntervalMs}ms")
+            stopMonitoring()
+            startMonitoring()
+        }
+    }
     
     fun deviceInfo(): GPUDeviceInfo {
         return provider?.deviceInfo() ?: GPUDeviceInfo.UNKNOWN
