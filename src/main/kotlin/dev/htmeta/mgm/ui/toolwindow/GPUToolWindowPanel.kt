@@ -1,7 +1,6 @@
 package dev.htmeta.mgm.ui.toolwindow
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -10,18 +9,19 @@ import com.intellij.util.ui.JBUI
 import dev.htmeta.mgm.model.GPUSnapshot
 import dev.htmeta.mgm.services.GPUMonitoringService
 import dev.htmeta.mgm.settings.GPUSettingsState
-import kotlinx.coroutines.*
 import java.awt.BorderLayout
 import javax.swing.*
 
 class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
 
     private val LOG = thisLogger()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val infoPanel = GPUInfoPanel()
     private val chartPanel = GPUChartPanel()
     private val processTablePanel = ProcessTablePanel()
+
+    private var updateTimer: Timer? = null
+    private var updateCount = 0
 
     @Volatile
     private var isPaused = false
@@ -51,13 +51,14 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
         add(topSection, BorderLayout.NORTH)
         add(splitter, BorderLayout.CENTER)
 
-        LOG.info("GPUToolWindowPanel: layout complete, starting subscription")
+        LOG.info("GPUToolWindowPanel: layout complete, starting timer")
 
         // Show initial state immediately
-        val service = GPUMonitoringService.getInstance()
-        updateFromSnapshot(service.latestSnapshot())
+        refreshData()
 
-        startSubscription()
+        // Start polling timer
+        startTimer()
+
         Disposer.register(this, infoPanel)
         Disposer.register(this, chartPanel)
         Disposer.register(this, processTablePanel)
@@ -99,12 +100,12 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
                 }
                 GPUSettingsState.getInstance().state.refreshIntervalMs = ms
                 GPUMonitoringService.getInstance().restartMonitoring()
+                restartTimer()
             }
         }
 
         val exportButton = JButton("Export").apply {
             addActionListener {
-                // Export functionality placeholder
                 LOG.info("Export requested")
             }
         }
@@ -121,41 +122,42 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
         return panel
     }
 
-    private fun startSubscription() {
-        val service = GPUMonitoringService.getInstance()
-
-        scope.launch {
-            var count = 0
-            service.snapshots.collect { snapshot ->
-                if (!isPaused) {
-                    count++
-                    ApplicationManager.getApplication().invokeLater {
-                        updateFromSnapshot(snapshot)
-                        if (count <= 5 || count % 100 == 0) {
-                            LOG.info("GPUToolWindowPanel: received snapshot #$count, GPU=${(snapshot.gpuUtilization * 100).toInt()}%")
-                        }
-                    }
-                }
+    private fun startTimer() {
+        val interval = GPUSettingsState.getInstance().state.refreshIntervalMs.toInt()
+        updateTimer = Timer(interval) {
+            if (!isPaused) {
+                refreshData()
             }
+        }.apply {
+            isRepeats = true
+            start()
         }
-
-        scope.launch {
-            service.processes.collect { processes ->
-                if (!isPaused) {
-                    ApplicationManager.getApplication().invokeLater {
-                        processTablePanel.updateProcesses(processes)
-                    }
-                }
-            }
-        }
+        LOG.info("GPUToolWindowPanel: timer started with interval ${interval}ms")
     }
 
-    private fun updateFromSnapshot(snapshot: GPUSnapshot) {
-        infoPanel.updateSnapshot(snapshot, GPUMonitoringService.getInstance().deviceInfo())
+    private fun restartTimer() {
+        updateTimer?.stop()
+        startTimer()
+    }
+
+    private fun refreshData() {
+        val service = GPUMonitoringService.getInstance()
+        val snapshot = service.latestSnapshot()
+        val processes = service.latestProcesses()
+
+        updateCount++
+        if (updateCount <= 5 || updateCount % 100 == 0) {
+            LOG.info("GPUToolWindowPanel: update #$updateCount, GPU=${(snapshot.gpuUtilization * 100).toInt()}%, bufferSize=${chartPanel.bufferSize}")
+        }
+
+        infoPanel.updateSnapshot(snapshot, service.deviceInfo())
         chartPanel.addDataPoint(snapshot.gpuUtilization, snapshot.memoryUtilization)
+        processTablePanel.updateProcesses(processes)
     }
 
     override fun dispose() {
-        scope.cancel()
+        updateTimer?.stop()
+        updateTimer = null
+        LOG.info("GPUToolWindowPanel: disposed")
     }
 }

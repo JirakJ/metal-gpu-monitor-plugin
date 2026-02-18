@@ -14,6 +14,8 @@ class GPUChartPanel : JPanel(), Disposable {
     private val memBuffer = ArrayDeque<Double>(MAX_POINTS)
     private var dataPointCount = 0
 
+    val bufferSize: Int get() = gpuBuffer.size
+
     private val gridColor = JBColor(Color(0xE0E0E0), Color(0x3C3F41))
     private val textColor = JBColor(Color(0x333333), Color(0xBBBBBB))
     private val memLineColor = JBColor(Color(0x1565C0), Color(0x42A5F5))

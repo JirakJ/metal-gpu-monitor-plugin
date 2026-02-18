@@ -100,6 +100,10 @@ class GPUMonitoringService : Disposable {
     fun latestSnapshot(): GPUSnapshot {
         return _snapshots.replayCache.lastOrNull() ?: GPUSnapshot.UNAVAILABLE
     }
+
+    fun latestProcesses(): List<ProcessGPUUsage> {
+        return _processes.replayCache.lastOrNull() ?: emptyList()
+    }
     
     override fun dispose() {
         stopMonitoring()
