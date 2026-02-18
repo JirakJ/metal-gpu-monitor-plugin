@@ -36,7 +36,7 @@ class ExportGPUDataAction : AnAction() {
             GPUSettingsState.ExportFormat.JSON -> "json"
             GPUSettingsState.ExportFormat.CSV -> "csv"
         }
-        val descriptor = FileSaverDescriptor("Export GPU Data", "Save GPU monitoring data", extension)
+        val descriptor = FileSaverDescriptor("Export GPU Data", "Save GPU monitoring data")
         val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, e.project)
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
         val wrapper = dialog.save("gpu-data-$timestamp.$extension") ?: return

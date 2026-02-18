@@ -9,7 +9,7 @@ import dev.htmeta.mgm.util.PlatformDetector
 
 class GPUToolWindowFactory : ToolWindowFactory, DumbAware {
 
-    override fun isApplicable(project: Project): Boolean = PlatformDetector.isMacOS()
+    override suspend fun isApplicableAsync(project: Project): Boolean = PlatformDetector.isMacOS()
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val panel = GPUToolWindowPanel(project)
