@@ -23,6 +23,7 @@ class GPUChartPanel : JPanel(), Disposable {
         preferredSize = Dimension(JBUI.scale(400), JBUI.scale(200))
         minimumSize = Dimension(JBUI.scale(200), JBUI.scale(100))
         isOpaque = true
+        isDoubleBuffered = true
     }
 
     fun addDataPoint(gpuUtilization: Double, memoryUtilization: Double) {
@@ -33,10 +34,19 @@ class GPUChartPanel : JPanel(), Disposable {
             memBuffer.addLast(memoryUtilization.coerceIn(0.0, 1.0))
         }
         dataPointCount++
-        if (dataPointCount <= 3 || dataPointCount % 60 == 0) {
+        if (dataPointCount <= 3 || dataPointCount % 100 == 0) {
             LOG.info("GPUChartPanel: addDataPoint #$dataPointCount - GPU: ${(gpuUtilization * 100).toInt()}%, Mem: ${(memoryUtilization * 100).toInt()}%, bufferSize: ${gpuBuffer.size}")
         }
-        repaint()
+        // Force repaint on EDT
+        if (javax.swing.SwingUtilities.isEventDispatchThread()) {
+            revalidate()
+            repaint()
+        } else {
+            javax.swing.SwingUtilities.invokeLater {
+                revalidate()
+                repaint()
+            }
+        }
     }
 
     override fun paintComponent(g: Graphics) {

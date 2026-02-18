@@ -125,10 +125,15 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
         val service = GPUMonitoringService.getInstance()
 
         scope.launch {
+            var count = 0
             service.snapshots.collect { snapshot ->
                 if (!isPaused) {
+                    count++
                     ApplicationManager.getApplication().invokeLater {
                         updateFromSnapshot(snapshot)
+                        if (count <= 5 || count % 100 == 0) {
+                            LOG.info("GPUToolWindowPanel: received snapshot #$count, GPU=${(snapshot.gpuUtilization * 100).toInt()}%")
+                        }
                     }
                 }
             }
