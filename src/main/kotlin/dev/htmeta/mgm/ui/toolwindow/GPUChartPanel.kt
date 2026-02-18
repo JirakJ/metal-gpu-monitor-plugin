@@ -45,7 +45,7 @@ class GPUChartPanel : JPanel(), Disposable {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
         // Fill background
-        g2.color = background
+        g2.color = background ?: JBColor.PanelBackground
         g2.fillRect(0, 0, width, height)
 
         val insets = insets
@@ -54,8 +54,11 @@ class GPUChartPanel : JPanel(), Disposable {
         val chartW = width - chartX - insets.right - JBUI.scale(8)
         val chartH = height - chartY - insets.bottom - JBUI.scale(20)
 
+        // Draw something even if size is too small
         if (chartW <= 0 || chartH <= 0) {
-            LOG.warn("GPUChartPanel: invalid dimensions - chartW=$chartW, chartH=$chartH, width=$width, height=$height")
+            g2.color = textColor
+            g2.font = g2.font.deriveFont(Font.PLAIN, JBUI.scale(11).toFloat())
+            g2.drawString("Chart area too small (${width}x${height})", JBUI.scale(8), JBUI.scale(20))
             g2.dispose()
             return
         }

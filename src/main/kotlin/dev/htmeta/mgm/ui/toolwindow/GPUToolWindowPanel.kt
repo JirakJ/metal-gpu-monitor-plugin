@@ -27,10 +27,21 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
     private var isPaused = false
 
     init {
+        LOG.info("GPUToolWindowPanel: initializing")
+
         val toolbar = createToolbar()
-        val splitter = JBSplitter(true, 0.55f).apply {
-            firstComponent = chartPanel
+
+        // Wrap chart in a panel to ensure proper sizing
+        val chartWrapper = JPanel(BorderLayout()).apply {
+            add(chartPanel, BorderLayout.CENTER)
+            minimumSize = java.awt.Dimension(JBUI.scale(200), JBUI.scale(100))
+            preferredSize = java.awt.Dimension(JBUI.scale(400), JBUI.scale(200))
+        }
+
+        val splitter = JBSplitter(true, 0.6f).apply {
+            firstComponent = chartWrapper
             secondComponent = processTablePanel
+            dividerWidth = JBUI.scale(4)
         }
 
         val topSection = JPanel(BorderLayout()).apply {
@@ -40,6 +51,8 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
         add(topSection, BorderLayout.NORTH)
         add(splitter, BorderLayout.CENTER)
 
+        LOG.info("GPUToolWindowPanel: layout complete, starting subscription")
+
         // Show initial state immediately
         val service = GPUMonitoringService.getInstance()
         updateFromSnapshot(service.latestSnapshot())
@@ -48,6 +61,8 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
         Disposer.register(this, infoPanel)
         Disposer.register(this, chartPanel)
         Disposer.register(this, processTablePanel)
+
+        LOG.info("GPUToolWindowPanel: initialization complete")
     }
 
     private fun createToolbar(): JPanel {
