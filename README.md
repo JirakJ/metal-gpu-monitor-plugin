@@ -82,7 +82,7 @@
 |-------------|---------|
 | **Operating System** | macOS 14+ (Sonoma or later) |
 | **Hardware** | Apple Silicon (M1/M2/M3/M4) or Intel Mac with integrated/discrete GPU |
-| **JetBrains IDE** | IntelliJ IDEA 2024.2+ (or any compatible JetBrains IDE, build 242+) |
+| **JetBrains IDE** | IntelliJ IDEA 2025.1+ (or any compatible JetBrains IDE, build 251+) |
 | **Java** | 17+ |
 
 ---
@@ -94,7 +94,7 @@ Settings are available at **Settings → Tools → GPU Monitor**.
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Enable monitoring | `true` | Start/stop GPU monitoring |
-| Polling interval | `2s` | How often GPU metrics are refreshed |
+| Polling interval | `100ms` | How often GPU metrics are refreshed (50ms - 1s) |
 | Status bar display | `Percentage` | Format of the status bar widget (percentage, graph, or both) |
 | Alert: GPU utilization | `90%` | Notification threshold for GPU usage (Pro) |
 | Alert: Memory usage | `80%` | Notification threshold for GPU memory (Pro) |
@@ -120,7 +120,7 @@ A: Metal GPU Monitor uses native macOS IOKit APIs and the Metal framework to acc
 A: The plugin uses JNA (Java Native Access) to call macOS IOKit functions that read GPU performance statistics directly from the kernel. This is the same data source that Activity Monitor and other system tools use — no additional drivers or permissions are required.
 
 **Q: Will it slow down my IDE?**
-A: No. GPU polling runs on a background thread with a configurable interval (default 2 seconds). The overhead is negligible — comparable to having Activity Monitor open.
+A: No. GPU polling runs on a background thread with a configurable interval (default 100ms, adjustable from 50ms to 1s). The overhead is negligible — comparable to having Activity Monitor open.
 
 **Q: Does it support external GPUs (eGPUs)?**
 A: Yes, any GPU visible to macOS IOKit will be detected, including eGPUs connected via Thunderbolt.
