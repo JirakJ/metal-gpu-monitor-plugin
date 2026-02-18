@@ -78,22 +78,24 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
             }
         }
 
-        val refreshCombo = JComboBox(arrayOf("1s", "2s", "5s", "10s")).apply {
+        val refreshCombo = JComboBox(arrayOf("250ms", "500ms", "1s", "2s", "5s")).apply {
             val currentMs = GPUSettingsState.getInstance().state.refreshIntervalMs
             selectedItem = when (currentMs) {
+                250L -> "250ms"
+                500L -> "500ms"
                 1000L -> "1s"
                 2000L -> "2s"
                 5000L -> "5s"
-                10000L -> "10s"
-                else -> "1s"
+                else -> "500ms"
             }
             addActionListener {
                 val ms = when (selectedItem as String) {
+                    "250ms" -> 250L
+                    "500ms" -> 500L
                     "1s" -> 1000L
                     "2s" -> 2000L
                     "5s" -> 5000L
-                    "10s" -> 10000L
-                    else -> 1000L
+                    else -> 500L
                 }
                 GPUSettingsState.getInstance().state.refreshIntervalMs = ms
             }

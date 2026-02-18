@@ -429,8 +429,8 @@ class IOKitGPUProvider : GPUProvider {
      * Enumerates running processes and reports those likely using the GPU.
      *
      * True per-process GPU utilization is not directly exposed by macOS to user-space
-     * without SPI. This implementation lists processes and tags the current IDE process;
-     * a future version could parse `IOAccelerator` client lists for richer data.
+     * without SPI. This implementation lists processes that are known to use GPU
+     * (browsers, renderers, games, etc.) and tags the current IDE process.
      */
     private fun readProcesses(): List<ProcessGPUUsage> {
         val proc = libProc ?: return emptyList()
@@ -457,23 +457,40 @@ class IOKitGPUProvider : GPUProvider {
 
             val name = String(nameBuffer, 0, nameLen)
             val isIDE = pid == myPid
+            val isGpuProcess = isLikelyGpuProcess(name)
 
-            // Only include the IDE process in the fallback list — we cannot determine
-            // actual per-process GPU usage without private SPI
-            if (isIDE) {
+            // Include IDE process and known GPU-using processes
+            if (isIDE || isGpuProcess) {
                 results.add(
                     ProcessGPUUsage(
                         pid = pid,
                         processName = name,
-                        gpuUtilization = 0.0,
+                        gpuUtilization = 0.0,  // Cannot determine without private API
                         gpuMemoryBytes = 0L,
-                        isIDEProcess = true,
+                        isIDEProcess = isIDE,
                     )
                 )
             }
         }
-        return results
+        return results.sortedByDescending { it.isIDEProcess }
     }
+
+    /** Check if process name suggests GPU usage */
+    private fun isLikelyGpuProcess(name: String): Boolean {
+        val lower = name.lowercase()
+        return GPU_PROCESS_PATTERNS.any { pattern -> lower.contains(pattern) }
+    }
+
+    private val GPU_PROCESS_PATTERNS = listOf(
+        "windowserver", "gpu", "metal", "render", "compositor",
+        "chrome", "firefox", "safari", "webkit", "electron",
+        "idea", "webstorm", "pycharm", "clion", "rider", "goland", "rubymine", "phpstorm", "appcode",
+        "xcode", "simulator",
+        "blender", "unity", "unreal", "maya", "cinema",
+        "premiere", "aftereffects", "photoshop", "illustrator", "figma", "sketch",
+        "vlc", "iina", "quicktime", "music", "tv",
+        "steam", "game", "mtl", "opengl"
+    )
 
     // =========================================================================
     // Internal: thermal state
