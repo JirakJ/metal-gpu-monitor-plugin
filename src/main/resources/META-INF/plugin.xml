@@ -1,0 +1,102 @@
+<idea-plugin>
+    <id>dev.htmeta.metal-gpu-monitor</id>
+    <name>Metal GPU Monitor</name>
+    <version>1.0.0</version>
+    <vendor email="support@jakubjirak.com" url="https://htmeta.dev">HTMETA.dev</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <product-descriptor code="PMETALGPUMON" release-date="20260218" release-version="20261" optional="true"/>
+
+    <description><![CDATA[
+    <h2>Metal GPU Monitor — Real-Time GPU Monitoring for macOS</h2>
+    <p>
+        Monitor your Apple GPU performance directly inside your JetBrains IDE.
+        Metal GPU Monitor provides real-time utilization metrics, memory tracking,
+        thermal state reporting, and per-process GPU usage — all without leaving your editor.
+    </p>
+
+    <h3>Features</h3>
+    <ul>
+        <li><b>Status Bar Widget</b> — At-a-glance GPU utilization percentage with color-coded indicator</li>
+        <li><b>Tool Window</b> — Dedicated bottom panel with live charts for GPU utilization and memory usage over time</li>
+        <li><b>Per-Process Tracking</b> — See which processes are consuming GPU resources, with IDE process highlighting</li>
+        <li><b>Thermal Monitoring</b> — Real-time thermal state reporting (Nominal, Fair, Serious, Critical)</li>
+        <li><b>Configurable Alerts</b> — Get notified when GPU utilization or memory exceeds your thresholds (Pro)</li>
+        <li><b>Data Export</b> — Export monitoring data to JSON or CSV for analysis (Pro)</li>
+        <li><b>24-Hour History</b> — Extended historical data retention with charts (Pro)</li>
+    </ul>
+
+    <h3>Free vs Pro</h3>
+    <p>
+        The free tier includes the status bar widget, tool window with 5-minute history,
+        and basic GPU metrics. Upgrade to Pro for extended history, alerts, data export,
+        full process list, and custom layouts.
+    </p>
+
+    <h3>Requirements</h3>
+    <ul>
+        <li><b>macOS only</b> — Uses native macOS IOKit APIs and Metal framework for GPU data</li>
+        <li>Apple Silicon (M1/M2/M3/M4) or Intel Mac with discrete/integrated GPU</li>
+        <li>IntelliJ Platform 2024.2 or later</li>
+    </ul>
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <h3>1.0.0 — Initial Release</h3>
+    <ul>
+        <li>Real-time GPU utilization monitoring via IOKit</li>
+        <li>Status bar widget with configurable display format</li>
+        <li>Tool window with live utilization and memory charts</li>
+        <li>Per-process GPU usage tracking</li>
+        <li>Thermal state monitoring and alerts</li>
+        <li>Configurable alert thresholds with cooldown</li>
+        <li>JSON and CSV data export (Pro)</li>
+        <li>24-hour historical data retention (Pro)</li>
+        <li>Freemium licensing via JetBrains Marketplace</li>
+    </ul>
+    ]]></change-notes>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <statusBarWidgetFactory id="dev.htmeta.mgm.statusBar"
+                                implementation="dev.htmeta.mgm.ui.statusbar.GPUStatusBarWidgetFactory"
+                                order="after encodingWidget"/>
+
+        <toolWindow id="GPU Monitor"
+                    anchor="bottom"
+                    secondary="true"
+                    icon="/icons/gpu-monitor.svg"
+                    factoryClass="dev.htmeta.mgm.ui.toolwindow.GPUToolWindowFactory"/>
+
+        <projectConfigurable instance="dev.htmeta.mgm.ui.settings.GPUMonitorConfigurable"
+                             displayName="GPU Monitor"
+                             parentId="tools"/>
+
+        <notificationGroup id="GPU Monitor Alerts"
+                           displayType="STICKY_BALLOON"
+                           isLogByDefault="true"/>
+
+        <postStartupActivity implementation="dev.htmeta.mgm.services.GPUMonitorStartupActivity"/>
+
+        <applicationService serviceImplementation="dev.htmeta.mgm.services.GPUMonitoringService"/>
+        <applicationService serviceImplementation="dev.htmeta.mgm.services.GPUHistoryService"/>
+        <applicationService serviceImplementation="dev.htmeta.mgm.services.GPUAlertService"/>
+        <applicationService serviceImplementation="dev.htmeta.mgm.settings.GPUSettingsState"/>
+        <applicationService serviceImplementation="dev.htmeta.mgm.licensing.TierFeatureGate"/>
+    </extensions>
+
+    <actions>
+        <group id="dev.htmeta.mgm.actions" text="GPU Monitor" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="dev.htmeta.mgm.actions.ToggleMonitoring"
+                    class="dev.htmeta.mgm.actions.ToggleMonitoringAction"
+                    text="Toggle GPU Monitoring"
+                    description="Pause or resume GPU monitoring"/>
+            <action id="dev.htmeta.mgm.actions.ExportGPUData"
+                    class="dev.htmeta.mgm.actions.ExportGPUDataAction"
+                    text="Export GPU Data..."
+                    description="Export GPU monitoring data to file"
+                    icon="/icons/export.svg"/>
+        </group>
+    </actions>
+</idea-plugin>

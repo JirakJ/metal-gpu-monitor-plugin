@@ -1,0 +1,140 @@
+package dev.htmeta.mgm.ui.toolwindow
+
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.thisLogger
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
+import com.intellij.ui.JBSplitter
+import com.intellij.util.ui.JBUI
+import dev.htmeta.mgm.model.GPUSnapshot
+import dev.htmeta.mgm.services.GPUMonitoringService
+import dev.htmeta.mgm.settings.GPUSettingsState
+import kotlinx.coroutines.*
+import java.awt.BorderLayout
+import javax.swing.*
+
+class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
+
+    private val LOG = thisLogger()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private val infoPanel = GPUInfoPanel()
+    private val chartPanel = GPUChartPanel()
+    private val processTablePanel = ProcessTablePanel()
+
+    @Volatile
+    private var isPaused = false
+
+    init {
+        val toolbar = createToolbar()
+        val splitter = JBSplitter(true, 0.55f).apply {
+            firstComponent = chartPanel
+            secondComponent = processTablePanel
+        }
+
+        add(toolbar, BorderLayout.NORTH)
+        add(infoPanel, BorderLayout.BEFORE_FIRST_LINE)
+        add(splitter, BorderLayout.CENTER)
+
+        // Wrap infoPanel + toolbar into top section
+        val topSection = JPanel(BorderLayout()).apply {
+            add(toolbar, BorderLayout.NORTH)
+            add(infoPanel, BorderLayout.SOUTH)
+        }
+        removeAll()
+        add(topSection, BorderLayout.NORTH)
+        add(splitter, BorderLayout.CENTER)
+
+        startSubscription()
+        Disposer.register(this, infoPanel)
+        Disposer.register(this, chartPanel)
+        Disposer.register(this, processTablePanel)
+    }
+
+    private fun createToolbar(): JPanel {
+        val panel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            border = JBUI.Borders.empty(4, 8)
+        }
+
+        val pauseButton = JButton("Pause").apply {
+            addActionListener {
+                isPaused = !isPaused
+                text = if (isPaused) "Resume" else "Pause"
+            }
+        }
+
+        val refreshCombo = JComboBox(arrayOf("1s", "2s", "5s", "10s")).apply {
+            val currentMs = GPUSettingsState.getInstance().state.refreshIntervalMs
+            selectedItem = when (currentMs) {
+                1000L -> "1s"
+                2000L -> "2s"
+                5000L -> "5s"
+                10000L -> "10s"
+                else -> "1s"
+            }
+            addActionListener {
+                val ms = when (selectedItem as String) {
+                    "1s" -> 1000L
+                    "2s" -> 2000L
+                    "5s" -> 5000L
+                    "10s" -> 10000L
+                    else -> 1000L
+                }
+                GPUSettingsState.getInstance().state.refreshIntervalMs = ms
+            }
+        }
+
+        val exportButton = JButton("Export").apply {
+            addActionListener {
+                // Export functionality placeholder
+                LOG.info("Export requested")
+            }
+        }
+
+        panel.add(pauseButton)
+        panel.add(Box.createHorizontalStrut(JBUI.scale(8)))
+        panel.add(JLabel("Refresh:"))
+        panel.add(Box.createHorizontalStrut(JBUI.scale(4)))
+        panel.add(refreshCombo)
+        panel.add(Box.createHorizontalStrut(JBUI.scale(8)))
+        panel.add(exportButton)
+        panel.add(Box.createHorizontalGlue())
+
+        return panel
+    }
+
+    private fun startSubscription() {
+        val service = GPUMonitoringService.getInstance()
+
+        scope.launch {
+            service.snapshots.collect { snapshot ->
+                if (!isPaused) {
+                    ApplicationManager.getApplication().invokeLater {
+                        updateFromSnapshot(snapshot)
+                    }
+                }
+            }
+        }
+
+        scope.launch {
+            service.processes.collect { processes ->
+                if (!isPaused) {
+                    ApplicationManager.getApplication().invokeLater {
+                        processTablePanel.updateProcesses(processes)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updateFromSnapshot(snapshot: GPUSnapshot) {
+        infoPanel.updateSnapshot(snapshot, GPUMonitoringService.getInstance().deviceInfo())
+        chartPanel.addDataPoint(snapshot.gpuUtilization, snapshot.memoryUtilization)
+    }
+
+    override fun dispose() {
+        scope.cancel()
+    }
+}
