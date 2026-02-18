@@ -195,24 +195,30 @@ class IOKitGPUProvider : GPUProvider {
     override fun initialize(): Boolean = lock.withLock {
         if (initialized) return true
         try {
+            log.info("IOKitGPUProvider: loading native libraries...")
             ioKit = Native.load("IOKit", IOKit::class.java)
+            log.info("IOKitGPUProvider: IOKit loaded")
             cf = Native.load("CoreFoundation", CF::class.java)
+            log.info("IOKitGPUProvider: CoreFoundation loaded")
             libProc = Native.load("System.B", LibProc::class.java)
+            log.info("IOKitGPUProvider: libproc loaded")
 
             // Verify we can reach at least one GPU service
+            log.info("IOKitGPUProvider: searching for GPU service...")
             val found = findGPUServiceEntry()
             if (found != 0) {
                 ioKit!!.IOObjectRelease(found)
                 initialized = true
                 log.info("IOKitGPUProvider initialized — GPU service located")
             } else {
-                log.warn("No GPU accelerator service found via IOKit")
+                log.warn("No GPU accelerator service found via IOKit. Searched: $GPU_SERVICE_NAMES")
             }
         } catch (e: UnsatisfiedLinkError) {
-            log.warn("Failed to load native libraries for IOKit GPU provider", e)
+            log.warn("Failed to load native libraries for IOKit GPU provider: ${e.message}", e)
         } catch (e: Exception) {
-            log.error("Unexpected error during IOKitGPUProvider initialization", e)
+            log.error("Unexpected error during IOKitGPUProvider initialization: ${e.message}", e)
         }
+        log.info("IOKitGPUProvider initialization result: $initialized")
         return initialized
     }
 

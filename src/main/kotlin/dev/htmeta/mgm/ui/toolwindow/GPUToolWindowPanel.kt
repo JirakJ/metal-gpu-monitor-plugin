@@ -33,18 +33,16 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
             secondComponent = processTablePanel
         }
 
-        add(toolbar, BorderLayout.NORTH)
-        add(infoPanel, BorderLayout.BEFORE_FIRST_LINE)
-        add(splitter, BorderLayout.CENTER)
-
-        // Wrap infoPanel + toolbar into top section
         val topSection = JPanel(BorderLayout()).apply {
             add(toolbar, BorderLayout.NORTH)
             add(infoPanel, BorderLayout.SOUTH)
         }
-        removeAll()
         add(topSection, BorderLayout.NORTH)
         add(splitter, BorderLayout.CENTER)
+
+        // Show initial state immediately
+        val service = GPUMonitoringService.getInstance()
+        updateFromSnapshot(service.latestSnapshot())
 
         startSubscription()
         Disposer.register(this, infoPanel)

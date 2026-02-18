@@ -33,10 +33,15 @@ class GPUMonitoringService : Disposable {
     
     fun startMonitoring() {
         if (_isMonitoring) return
-        
+
         val gpuProvider = provider ?: GPUProviderFactory().createProvider().also { provider = it }
         if (!gpuProvider.isAvailable()) {
-            LOG.warn("No GPU provider available")
+            LOG.warn("No GPU provider available - monitoring disabled")
+            // Emit unavailable snapshot so UI shows something
+            scope.launch {
+                _snapshots.emit(GPUSnapshot.UNAVAILABLE)
+                _processes.emit(emptyList())
+            }
             return
         }
         
