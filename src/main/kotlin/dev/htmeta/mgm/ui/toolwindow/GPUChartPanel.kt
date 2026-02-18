@@ -1,6 +1,7 @@
 package dev.htmeta.mgm.ui.toolwindow
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import java.awt.*
@@ -8,8 +9,10 @@ import javax.swing.JPanel
 
 class GPUChartPanel : JPanel(), Disposable {
 
+    private val LOG = thisLogger()
     private val gpuBuffer = ArrayDeque<Double>(MAX_POINTS)
     private val memBuffer = ArrayDeque<Double>(MAX_POINTS)
+    private var dataPointCount = 0
 
     private val gridColor = JBColor(Color(0xE0E0E0), Color(0x3C3F41))
     private val textColor = JBColor(Color(0x333333), Color(0xBBBBBB))
@@ -18,6 +21,8 @@ class GPUChartPanel : JPanel(), Disposable {
     init {
         border = JBUI.Borders.empty(8)
         preferredSize = Dimension(JBUI.scale(400), JBUI.scale(200))
+        minimumSize = Dimension(JBUI.scale(200), JBUI.scale(100))
+        isOpaque = true
     }
 
     fun addDataPoint(gpuUtilization: Double, memoryUtilization: Double) {
@@ -27,6 +32,10 @@ class GPUChartPanel : JPanel(), Disposable {
             if (memBuffer.size >= MAX_POINTS) memBuffer.removeFirst()
             memBuffer.addLast(memoryUtilization.coerceIn(0.0, 1.0))
         }
+        dataPointCount++
+        if (dataPointCount <= 3 || dataPointCount % 60 == 0) {
+            LOG.info("GPUChartPanel: addDataPoint #$dataPointCount - GPU: ${(gpuUtilization * 100).toInt()}%, Mem: ${(memoryUtilization * 100).toInt()}%, bufferSize: ${gpuBuffer.size}")
+        }
         repaint()
     }
 
@@ -35,6 +44,10 @@ class GPUChartPanel : JPanel(), Disposable {
         val g2 = g.create() as Graphics2D
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
+        // Fill background
+        g2.color = background
+        g2.fillRect(0, 0, width, height)
+
         val insets = insets
         val chartX = insets.left + JBUI.scale(36)
         val chartY = insets.top + JBUI.scale(8)
@@ -42,11 +55,14 @@ class GPUChartPanel : JPanel(), Disposable {
         val chartH = height - chartY - insets.bottom - JBUI.scale(20)
 
         if (chartW <= 0 || chartH <= 0) {
+            LOG.warn("GPUChartPanel: invalid dimensions - chartW=$chartW, chartH=$chartH, width=$width, height=$height")
             g2.dispose()
             return
         }
 
+        // Always draw grid and axes
         drawGrid(g2, chartX, chartY, chartW, chartH)
+        drawAxes(g2, chartX, chartY, chartW, chartH)
 
         val gpuPoints: List<Double>
         val memPoints: List<Double>
@@ -59,9 +75,15 @@ class GPUChartPanel : JPanel(), Disposable {
             drawAreaChart(g2, gpuPoints, chartX, chartY, chartW, chartH)
             drawLine(g2, memPoints, chartX, chartY, chartW, chartH, memLineColor)
             drawOverlayText(g2, gpuPoints.last(), chartX, chartY, chartW)
+        } else {
+            // Show waiting message
+            g2.color = textColor
+            g2.font = g2.font.deriveFont(Font.ITALIC, JBUI.scale(12).toFloat())
+            val msg = "Waiting for GPU data..."
+            val fm = g2.fontMetrics
+            g2.drawString(msg, chartX + (chartW - fm.stringWidth(msg)) / 2, chartY + chartH / 2)
         }
 
-        drawAxes(g2, chartX, chartY, chartW, chartH)
         g2.dispose()
     }
 

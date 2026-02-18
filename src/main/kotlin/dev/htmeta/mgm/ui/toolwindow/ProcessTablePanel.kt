@@ -31,6 +31,9 @@ class ProcessTablePanel : JPanel(BorderLayout()), Disposable {
 
     init {
         border = JBUI.Borders.empty(4)
+        preferredSize = java.awt.Dimension(JBUI.scale(400), JBUI.scale(150))
+        minimumSize = java.awt.Dimension(JBUI.scale(200), JBUI.scale(80))
+
         table.rowSorter = sorter
         table.autoResizeMode = JTable.AUTO_RESIZE_ALL_COLUMNS
         table.rowHeight = JBUI.scale(22)
