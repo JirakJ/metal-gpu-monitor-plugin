@@ -11,7 +11,7 @@ import com.intellij.openapi.components.Storage
 class GPUSettingsState : PersistentStateComponent<GPUSettingsState.State> {
 
     data class State(
-        var refreshIntervalMs: Long = 500,
+        var refreshIntervalMs: Long = 100,
         var statusBarEnabled: Boolean = true,
         var statusBarFormat: StatusBarFormat = StatusBarFormat.ICON_PERCENT,
         var showInToolWindow: Boolean = true,

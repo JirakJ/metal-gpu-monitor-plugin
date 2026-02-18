@@ -47,14 +47,22 @@ class GPUMonitoringService : Disposable {
         
         _isMonitoring = true
         monitoringJob = scope.launch {
-            LOG.info("GPU monitoring started")
+            LOG.info("GPU monitoring started with interval ${GPUSettingsState.getInstance().state.refreshIntervalMs}ms")
+            var loopCount = 0
             while (isActive) {
                 try {
                     val snapshot = withContext(Dispatchers.IO) { gpuProvider.fetchSnapshot() }
                     _snapshots.emit(snapshot)
-                    
+
                     val procs = withContext(Dispatchers.IO) { gpuProvider.fetchProcesses() }
                     _processes.emit(procs)
+
+                    loopCount++
+                    if (loopCount == 1 || loopCount % 100 == 0) {
+                        LOG.info("GPU monitoring loop #$loopCount: GPU=${(snapshot.gpuUtilization * 100).toInt()}%, " +
+                                "Mem=${snapshot.memoryAllocatedBytes / 1024 / 1024}MB, " +
+                                "processes=${procs.size}")
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {

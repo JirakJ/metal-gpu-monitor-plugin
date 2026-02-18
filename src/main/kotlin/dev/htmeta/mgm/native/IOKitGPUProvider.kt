@@ -427,23 +427,30 @@ class IOKitGPUProvider : GPUProvider {
 
     /**
      * Enumerates running processes and reports those likely using the GPU.
-     *
-     * True per-process GPU utilization is not directly exposed by macOS to user-space
-     * without SPI. This implementation lists processes that are known to use GPU
-     * (browsers, renderers, games, etc.) and tags the current IDE process.
+     * Shows all processes matching known GPU-using patterns.
      */
     private fun readProcesses(): List<ProcessGPUUsage> {
-        val proc = libProc ?: return emptyList()
+        val proc = libProc ?: run {
+            log.warn("libProc not available for process enumeration")
+            return emptyList()
+        }
         val results = mutableListOf<ProcessGPUUsage>()
 
         // Get all PIDs
         val estimatedCount = proc.proc_listallpids(null, 0) / Int.SIZE_BYTES
-        if (estimatedCount <= 0) return emptyList()
+        if (estimatedCount <= 0) {
+            log.warn("proc_listallpids returned 0 processes")
+            return emptyList()
+        }
+
         val pidBuffer = IntArray(estimatedCount + 64)
         val bytesWritten = proc.proc_listallpids(pidBuffer, pidBuffer.size * Int.SIZE_BYTES)
-        if (bytesWritten <= 0) return emptyList()
-        val pidCount = bytesWritten / Int.SIZE_BYTES
+        if (bytesWritten <= 0) {
+            log.warn("proc_listallpids failed to fill buffer")
+            return emptyList()
+        }
 
+        val pidCount = bytesWritten / Int.SIZE_BYTES
         val myPid = ProcessHandle.current().pid().toInt()
         val nameBuffer = ByteArray(256)
 
@@ -459,20 +466,39 @@ class IOKitGPUProvider : GPUProvider {
             val isIDE = pid == myPid
             val isGpuProcess = isLikelyGpuProcess(name)
 
-            // Include IDE process and known GPU-using processes
             if (isIDE || isGpuProcess) {
                 results.add(
                     ProcessGPUUsage(
                         pid = pid,
                         processName = name,
-                        gpuUtilization = 0.0,  // Cannot determine without private API
+                        gpuUtilization = 0.0,  // macOS doesn't expose per-process GPU %
                         gpuMemoryBytes = 0L,
                         isIDEProcess = isIDE,
                     )
                 )
             }
         }
-        return results.sortedByDescending { it.isIDEProcess }
+
+        // Always include WindowServer if found (main GPU process on macOS)
+        if (results.none { it.processName.contains("WindowServer", ignoreCase = true) }) {
+            // Try to find WindowServer specifically
+            for (i in 0 until pidCount) {
+                val pid = pidBuffer[i]
+                if (pid <= 0) continue
+                nameBuffer.fill(0)
+                val nameLen = proc.proc_name(pid, nameBuffer, nameBuffer.size)
+                if (nameLen > 0) {
+                    val name = String(nameBuffer, 0, nameLen)
+                    if (name.equals("WindowServer", ignoreCase = true)) {
+                        results.add(0, ProcessGPUUsage(pid, name, 0.0, 0L, false))
+                        break
+                    }
+                }
+            }
+        }
+
+        return results.sortedWith(compareByDescending<ProcessGPUUsage> { it.isIDEProcess }
+            .thenByDescending { it.processName.equals("WindowServer", ignoreCase = true) })
     }
 
     /** Check if process name suggests GPU usage */
@@ -482,14 +508,25 @@ class IOKitGPUProvider : GPUProvider {
     }
 
     private val GPU_PROCESS_PATTERNS = listOf(
-        "windowserver", "gpu", "metal", "render", "compositor",
-        "chrome", "firefox", "safari", "webkit", "electron",
-        "idea", "webstorm", "pycharm", "clion", "rider", "goland", "rubymine", "phpstorm", "appcode",
-        "xcode", "simulator",
-        "blender", "unity", "unreal", "maya", "cinema",
-        "premiere", "aftereffects", "photoshop", "illustrator", "figma", "sketch",
-        "vlc", "iina", "quicktime", "music", "tv",
-        "steam", "game", "mtl", "opengl"
+        // System GPU processes
+        "windowserver", "gpuswitch", "mtlcompilerservice", "metalcompilerservice",
+        "corebrightness", "skylight", "quartz", "coreanimation",
+        // Browsers & web
+        "chrome", "firefox", "safari", "webkit", "electron", "gpu process", "gpu-process",
+        "chromium", "brave", "edge", "opera", "vivaldi", "arc",
+        // JetBrains IDEs
+        "idea", "webstorm", "pycharm", "clion", "rider", "goland", "rubymine", "phpstorm",
+        "appcode", "datagrip", "fleet",
+        // Apple apps
+        "xcode", "simulator", "instruments", "finder", "dock", "systemuiserver",
+        // Creative/3D
+        "blender", "unity", "unreal", "maya", "cinema4d", "houdini", "zbrush",
+        "premiere", "aftereffects", "photoshop", "illustrator", "lightroom",
+        "figma", "sketch", "affinity", "davinci", "finalcut", "motion", "compressor",
+        // Media
+        "vlc", "iina", "quicktime", "music", "tv", "photos", "preview",
+        // Games
+        "steam", "game", "mtl"
     )
 
     // =========================================================================
