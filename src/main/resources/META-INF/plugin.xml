@@ -6,10 +6,9 @@
 
     <depends>com.intellij.modules.platform</depends>
 
-    <product-descriptor code="PMETALGPUMON" release-date="20260218" release-version="20261" optional="true"/>
+    <product-descriptor code="PMETALGPUMON" release-date="20260227" release-version="20262" optional="true"/>
 
-    <description><![CDATA[
-    <h2>Metal GPU Monitor — Real-Time GPU Monitoring for macOS</h2>
+    <description><![CDATA[<h2>Metal GPU Monitor — Real-Time GPU Monitoring for macOS</h2>
     <p>
         Monitor your Apple GPU performance directly inside your JetBrains IDE.
         Metal GPU Monitor provides real-time utilization metrics, memory tracking,
@@ -22,25 +21,19 @@
         <li><b>Tool Window</b> — Dedicated bottom panel with live charts for GPU utilization and memory usage over time</li>
         <li><b>Per-Process Tracking</b> — See which processes are consuming GPU resources, with IDE process highlighting</li>
         <li><b>Thermal Monitoring</b> — Real-time thermal state reporting (Nominal, Fair, Serious, Critical)</li>
-        <li><b>Configurable Alerts</b> — Get notified when GPU utilization or memory exceeds your thresholds (Pro)</li>
-        <li><b>Data Export</b> — Export monitoring data to JSON or CSV for analysis (Pro)</li>
-        <li><b>24-Hour History</b> — Extended historical data retention with charts (Pro)</li>
+        <li><b>Configurable Alerts</b> — Get notified when GPU utilization or memory exceeds your thresholds</li>
+        <li><b>Data Export</b> — Export monitoring data to JSON or CSV for analysis</li>
+        <li><b>24-Hour History</b> — Extended historical data retention with charts</li>
     </ul>
 
-    <h3>Free vs Pro</h3>
-    <p>
-        The free tier includes the status bar widget, tool window with 5-minute history,
-        and basic GPU metrics. Upgrade to Pro for extended history, alerts, data export,
-        full process list, and custom layouts.
-    </p>
+    
 
     <h3>Requirements</h3>
     <ul>
         <li><b>macOS only</b> — Uses native macOS IOKit APIs and Metal framework for GPU data</li>
         <li>Apple Silicon (M1/M2/M3/M4) or Intel Mac with discrete/integrated GPU</li>
         <li>IntelliJ Platform 2024.2 or later</li>
-    </ul>
-    ]]></description>
+    </ul>]]></description>
 
     <change-notes><![CDATA[
     <h3>1.0.0 — Initial Release</h3>

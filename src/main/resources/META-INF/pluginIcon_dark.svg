@@ -1,12 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-  <rect x="6" y="8" width="28" height="24" rx="2" fill="none" stroke="#AFB1B3" stroke-width="1.8"/>
-  <line x1="15" y1="8" x2="15" y2="32" stroke="#AFB1B3" stroke-width="1.2"/>
-  <line x1="25" y1="8" x2="25" y2="32" stroke="#AFB1B3" stroke-width="1.2"/>
-  <line x1="6" y1="16" x2="34" y2="16" stroke="#AFB1B3" stroke-width="1.2"/>
-  <line x1="6" y1="24" x2="34" y2="24" stroke="#AFB1B3" stroke-width="1.2"/>
-  <rect x="9" y="11" width="4" height="3" rx="0.5" fill="#AFB1B3"/>
-  <rect x="18" y="19" width="4" height="3" rx="0.5" fill="#AFB1B3"/>
-  <rect x="27" y="11" width="4" height="3" rx="0.5" fill="#AFB1B3"/>
-  <rect x="9" y="26" width="4" height="3" rx="0.5" fill="#3592C4"/>
-  <rect x="18" y="26" width="4" height="3" rx="0.5" fill="#3592C4"/>
+    <!-- Background -->
+    <rect width="40" height="40" rx="8" fill="#0F0F1A"/>
+    <!-- GPU chip body -->
+    <rect x="10" y="10" width="20" height="20" rx="3" fill="#1E1E30" stroke="#9B8AFB" stroke-width="1.5"/>
+    <!-- GPU pins - top -->
+    <rect x="14" y="7" width="2" height="4" rx="0.5" fill="#9B8AFB"/>
+    <rect x="19" y="7" width="2" height="4" rx="0.5" fill="#9B8AFB"/>
+    <rect x="24" y="7" width="2" height="4" rx="0.5" fill="#9B8AFB"/>
+    <!-- GPU pins - bottom -->
+    <rect x="14" y="29" width="2" height="4" rx="0.5" fill="#9B8AFB"/>
+    <rect x="19" y="29" width="2" height="4" rx="0.5" fill="#9B8AFB"/>
+    <rect x="24" y="29" width="2" height="4" rx="0.5" fill="#9B8AFB"/>
+    <!-- GPU pins - left -->
+    <rect x="7" y="14" width="4" height="2" rx="0.5" fill="#9B8AFB"/>
+    <rect x="7" y="19" width="4" height="2" rx="0.5" fill="#9B8AFB"/>
+    <rect x="7" y="24" width="4" height="2" rx="0.5" fill="#9B8AFB"/>
+    <!-- GPU pins - right -->
+    <rect x="29" y="14" width="4" height="2" rx="0.5" fill="#9B8AFB"/>
+    <rect x="29" y="19" width="4" height="2" rx="0.5" fill="#9B8AFB"/>
+    <rect x="29" y="24" width="4" height="2" rx="0.5" fill="#9B8AFB"/>
+    <!-- Metal logo / M shape in center -->
+    <path d="M15 24 L15 17 L18 21 L20 17 L22 21 L25 17 L25 24" fill="none" stroke="#00E5FF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
