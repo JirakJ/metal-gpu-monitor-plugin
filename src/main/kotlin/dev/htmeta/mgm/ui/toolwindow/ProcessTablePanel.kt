@@ -2,7 +2,6 @@ package dev.htmeta.mgm.ui.toolwindow
 
 import com.intellij.openapi.Disposable
 import com.intellij.ui.JBColor
-import com.intellij.ui.components.JBLabel
 import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.JBUI
 import dev.htmeta.mgm.model.ProcessGPUUsage
@@ -18,17 +17,6 @@ class ProcessTablePanel : JPanel(BorderLayout()), Disposable {
     private val tableModel = ProcessTableModel()
     private val table = JBTable(tableModel)
     private val sorter = TableRowSorter(tableModel)
-    private val upgradeLabel = JBLabel(
-        "<html><center>Showing top 3 processes. " +
-                "<a href='#'>Upgrade to Pro</a> for full process list.</center></html>"
-    ).apply {
-        border = JBUI.Borders.empty(6, 8)
-        horizontalAlignment = SwingConstants.CENTER
-    }
-
-    // TODO: integrate with actual license check
-    private var isProTier = false
-
     init {
         border = JBUI.Borders.empty(4)
         preferredSize = java.awt.Dimension(JBUI.scale(400), JBUI.scale(150))
@@ -41,22 +29,10 @@ class ProcessTablePanel : JPanel(BorderLayout()), Disposable {
 
         val scrollPane = JScrollPane(table)
         add(scrollPane, BorderLayout.CENTER)
-        add(upgradeLabel, BorderLayout.SOUTH)
-        updateUpgradeVisibility()
     }
 
     fun updateProcesses(processes: List<ProcessGPUUsage>) {
-        val displayList = if (isProTier) {
-            processes
-        } else {
-            processes.sortedByDescending { it.gpuUtilization }.take(FREE_TIER_LIMIT)
-        }
-        tableModel.setData(displayList)
-        updateUpgradeVisibility()
-    }
-
-    private fun updateUpgradeVisibility() {
-        upgradeLabel.isVisible = !isProTier
+        tableModel.setData(processes)
     }
 
     override fun dispose() {}
@@ -150,7 +126,5 @@ class ProcessTablePanel : JPanel(BorderLayout()), Disposable {
         }
     }
 
-    companion object {
-        private const val FREE_TIER_LIMIT = 3
-    }
+    companion object
 }

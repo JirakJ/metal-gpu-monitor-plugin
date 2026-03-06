@@ -6,8 +6,6 @@
 
     <depends>com.intellij.modules.platform</depends>
 
-    <product-descriptor code="PMETALGPUMON" release-date="20260227" release-version="20262" optional="true"/>
-
     <description><![CDATA[<h2>Metal GPU Monitor — Real-Time GPU Monitoring for macOS</h2>
     <p>
         Monitor your Apple GPU performance directly inside your JetBrains IDE.
@@ -44,9 +42,8 @@
         <li>Per-process GPU usage tracking</li>
         <li>Thermal state monitoring and alerts</li>
         <li>Configurable alert thresholds with cooldown</li>
-        <li>JSON and CSV data export (Pro)</li>
-        <li>24-hour historical data retention (Pro)</li>
-        <li>Freemium licensing via JetBrains Marketplace</li>
+        <li>JSON and CSV data export</li>
+        <li>24-hour historical data retention</li>
     </ul>
     ]]></change-notes>
 
@@ -75,7 +72,9 @@
         <applicationService serviceImplementation="dev.htmeta.mgm.services.GPUHistoryService"/>
         <applicationService serviceImplementation="dev.htmeta.mgm.services.GPUAlertService"/>
         <applicationService serviceImplementation="dev.htmeta.mgm.settings.GPUSettingsState"/>
-        <applicationService serviceImplementation="dev.htmeta.mgm.licensing.TierFeatureGate"/>
+    
+        <notificationGroup id="Metal GPU Monitor Feedback" displayType="BALLOON"/>
+        <projectActivity implementation="dev.htmeta.mgm.feedback.FeedbackNotifier"/>
     </extensions>
 
     <actions>

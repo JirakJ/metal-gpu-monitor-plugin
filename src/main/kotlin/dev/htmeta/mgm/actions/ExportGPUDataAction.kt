@@ -5,7 +5,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
-import dev.htmeta.mgm.licensing.TierFeatureGate
 import dev.htmeta.mgm.model.GPUSnapshot
 import dev.htmeta.mgm.services.GPUHistoryService
 import dev.htmeta.mgm.services.GPUMonitoringService
@@ -18,19 +17,7 @@ class ExportGPUDataAction : AnAction() {
     private val LOG = thisLogger()
 
     override fun actionPerformed(e: AnActionEvent) {
-        val gate = TierFeatureGate.getInstance()
         val format = GPUSettingsState.getInstance().state.exportFormat
-        val feature = when (format) {
-            GPUSettingsState.ExportFormat.JSON -> TierFeatureGate.Feature.JSON_EXPORT
-            GPUSettingsState.ExportFormat.CSV -> TierFeatureGate.Feature.CSV_EXPORT
-        }
-        if (!gate.isAvailable(feature)) {
-            com.intellij.openapi.ui.Messages.showWarningDialog(
-                "Data export is a Pro feature. Please upgrade your license.",
-                "Pro Feature Required"
-            )
-            return
-        }
 
         val extension = when (format) {
             GPUSettingsState.ExportFormat.JSON -> "json"
@@ -62,7 +49,7 @@ class ExportGPUDataAction : AnAction() {
     }
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabled = TierFeatureGate.getInstance().isAvailable(TierFeatureGate.Feature.JSON_EXPORT)
+        e.presentation.isEnabled = true
     }
 
     private fun exportJson(file: File, current: GPUSnapshot, history: List<GPUSnapshot>) {
