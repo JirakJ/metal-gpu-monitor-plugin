@@ -47,6 +47,14 @@ dependencies {
     testImplementation(libs.mockk)
 }
 
+// Exclude IDE-provided libraries from plugin distribution
+configurations {
+    runtimeClasspath {
+        exclude(group = "org.jetbrains.kotlin")
+        exclude(group = "org.jetbrains", module = "annotations")
+    }
+}
+
 intellijPlatform {
     pluginConfiguration {
         id = providers.gradleProperty("pluginGroup")
@@ -66,7 +74,7 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            recommended()
+            ide("IC", "2025.1")
         }
     }
 
