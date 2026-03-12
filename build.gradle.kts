@@ -75,6 +75,7 @@ intellijPlatform {
     pluginVerification {
         ides {
             ide("IC", "2025.1")
+            ide("IC", "2025.1.3")
         }
     }
 
