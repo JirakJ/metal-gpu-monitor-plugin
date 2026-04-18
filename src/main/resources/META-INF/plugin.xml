@@ -3,6 +3,8 @@
     <name>Metal GPU Monitor</name>
     <version>1.0.0</version>
     <vendor email="support@jakubjirak.com" url="https://htmeta.dev">HTMETA.dev</vendor>
+    <product-descriptor code="PMETALGPUMONITO" release-date="20260418" release-version="20263" optional="true"/>
+
 
     <depends>com.intellij.modules.platform</depends>
 
