@@ -68,7 +68,7 @@ intellijPlatform {
         vendor {
             name = "HTMETA.dev (Jakub Jirák)"
             email = "support@jakubjirak.com"
-            url = "https://htmeta.dev"
+            url = "https://github.com/JirakJ/metal-gpu-monitor-plugin"
         }
     }
 
@@ -113,6 +113,7 @@ tasks {
 detekt {
     config.setFrom(files("detekt.yml"))
     buildUponDefaultConfig = true
+    baseline = file("detekt-baseline.xml")
 }
 
 tasks.register<proguard.gradle.ProGuardTask>("obfuscate") {

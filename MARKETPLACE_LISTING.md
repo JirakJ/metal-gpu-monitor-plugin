@@ -16,7 +16,7 @@
 
 ## 🎯 Short Description
 
-> Real-time GPU monitoring for macOS — track utilization, memory, thermals, and per-process usage directly in your JetBrains IDE. Free core + Pro at $3.90/mo.
+> Real-time GPU monitoring for macOS — track utilization, memory, thermals, and per-process usage directly in your JetBrains IDE. Free and open source.
 
 _(155 characters)_
 
@@ -34,7 +34,7 @@ _(155 characters)_
 
 ### ✨ Key Features
 
-#### 🆓 Free — Instant GPU Visibility
+#### 📊 Instant GPU Visibility
 
 - 📊 **Status Bar Widget** — At-a-glance GPU utilization percentage with color-coded indicator
 - 📈 **Live Charts** — Real-time utilization and memory usage graphs in a dedicated tool window
@@ -44,7 +44,7 @@ _(155 characters)_
 - 💻 **Device Info** — GPU model, vendor, core count, and architecture details
 - ⚙️ **Configurable Polling** — Set your preferred refresh interval
 
-#### 💎 Pro — $3.90/month
+#### 🚀 Advanced Monitoring
 
 - 📅 **24-Hour History** — Extended data retention with scrollable historical charts
 - 🔔 **Configurable Alerts** — Notifications when GPU utilization or memory exceeds custom thresholds
@@ -54,12 +54,10 @@ _(155 characters)_
 
 ---
 
-### 💰 Pricing Model
+### 💰 Pricing
 
-| Tier     | Price       | Highlights                                              |
-|----------|-------------|---------------------------------------------------------|
-| **Free** | $0          | Status bar widget, live charts, thermal state, 5-min history, basic process view |
-| **Pro**  | $3.90/month | 24-hour history, configurable alerts, data export, full process list, custom layouts |
+Metal GPU Monitor is **completely free and open source** (Apache License 2.0).
+Every feature is available to everyone — no license or subscription needed.
 
 ---
 
@@ -164,9 +162,6 @@ _(155 characters)_
 - [ ] Screenshots are high-resolution (1280×800 or higher), PNG format
 - [ ] Plugin ID matches `gradle.properties` and `plugin.xml`
 - [ ] `plugin.xml` vendor email and URL are correct
-- [ ] Pricing tiers configured in JetBrains Marketplace seller dashboard
-- [ ] Product code `PMETALGPUMON` is registered
-- [ ] License agreement / EULA uploaded
 - [ ] Compatibility range tested on minimum supported IDE version (2024.2)
 - [ ] Plugin verified with Plugin Verifier (`runPluginVerifier` Gradle task)
 - [ ] CHANGELOG.md is up to date for the release version

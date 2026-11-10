@@ -1,9 +1,12 @@
 # Metal GPU Monitor — JetBrains IDE Plugin
 
-[![Build](https://github.com/JirakJ/metal-gpu-monitor-plugin/actions/workflows/build.yml/badge.svg)](https://github.com/JirakJ/metal-gpu-monitor-plugin/actions/workflows/build.yml)
-[![Version](https://img.shields.io/jetbrains/plugin/v/dev.htmeta.metal-gpu-monitor.svg)](https://plugins.jetbrains.com/plugin/XXXXX-metal-gpu-monitor)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/dev.htmeta.metal-gpu-monitor.svg)](https://plugins.jetbrains.com/plugin/XXXXX-metal-gpu-monitor)
-[![Rating](https://img.shields.io/jetbrains/plugin/r/rating/dev.htmeta.metal-gpu-monitor.svg)](https://plugins.jetbrains.com/plugin/XXXXX-metal-gpu-monitor)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE) ![Version](https://img.shields.io/badge/version-2026.8.0-green)
+
+> **Free & open source.** Since 2026.8.0 the plugin is completely free — every feature is unlocked for everyone, no license needed — and the source code is available under the Apache License 2.0.
+
+[![Build](https://github.com/JirakJ/metal-gpu-monitor-plugin/actions/workflows/verify.yml/badge.svg)](https://github.com/JirakJ/metal-gpu-monitor-plugin/actions/workflows/verify.yml)
+[![Downloads](https://img.shields.io/jetbrains/plugin/d/30266.svg)](https://plugins.jetbrains.com/plugin/30266)
+[![Rating](https://img.shields.io/jetbrains/plugin/r/rating/30266.svg)](https://plugins.jetbrains.com/plugin/30266)
 
 > Real-time GPU monitoring for macOS developers directly in their JetBrains IDE. Track GPU utilization, memory usage, thermal state, and per-process GPU consumption — all without leaving your editor.
 
@@ -11,24 +14,24 @@
 
 ## ✨ Features
 
-### Free vs Pro Comparison
+### Feature Overview
 
-| Feature | Free | Pro ($3.90/month) |
-|---------|:----:|:------------------:|
-| Status bar GPU widget | ✅ | ✅ |
-| Real-time GPU utilization | ✅ | ✅ |
-| Memory usage tracking | ✅ | ✅ |
-| Thermal state monitoring | ✅ | ✅ |
-| Tool window with live charts | ✅ | ✅ |
-| 5-minute history | ✅ | ✅ |
-| Basic device info | ✅ | ✅ |
-| 24-hour extended history | ❌ | ✅ |
-| Configurable alerts | ❌ | ✅ |
-| Data export (JSON/CSV) | ❌ | ✅ |
-| Full per-process GPU list | ❌ | ✅ |
-| Custom dashboard layouts | ❌ | ✅ |
+| Feature | Included |
+|---------|:--------:|
+| Status bar GPU widget | ✅ |
+| Real-time GPU utilization | ✅ |
+| Memory usage tracking | ✅ |
+| Thermal state monitoring | ✅ |
+| Tool window with live charts | ✅ |
+| 5-minute history | ✅ |
+| Basic device info | ✅ |
+| 24-hour extended history | ✅ |
+| Configurable alerts | ✅ |
+| Data export (JSON/CSV) | ✅ |
+| Full per-process GPU list | ✅ |
+| Custom dashboard layouts | ✅ |
 
-### 🆓 Free Tier
+### 📊 Monitoring
 
 - **Status Bar Widget** — At-a-glance GPU utilization percentage with color-coded indicator
 - **Tool Window** — Dedicated bottom panel with live charts for GPU utilization and memory usage
@@ -37,7 +40,7 @@
 - **5-Minute History** — Short-term charts for recent GPU activity
 - **Device Info** — GPU model, vendor, and core count display
 
-### 💎 Pro Tier ($3.90/month)
+### 🚀 Advanced
 
 - **24-Hour History** — Extended historical data retention with scrollable charts
 - **Configurable Alerts** — Get notified when GPU utilization or memory exceeds custom thresholds
@@ -128,9 +131,6 @@ A: Yes, any GPU visible to macOS IOKit will be detected, including eGPUs connect
 **Q: What JetBrains IDEs are supported?**
 A: All JetBrains IDEs based on the IntelliJ Platform 2024.2+: IntelliJ IDEA, PyCharm, WebStorm, GoLand, CLion, PhpStorm, Rider, RubyMine, and Android Studio.
 
-**Q: How does the free trial work?**
-A: You get 30 days of full Pro access. After the trial, Pro features are disabled and you continue with the free tier. You can upgrade to Pro anytime via the JetBrains Marketplace.
-
 ---
 
 ## 🏗️ Building from Source
@@ -149,14 +149,6 @@ To run the plugin in a sandboxed IDE instance:
 
 ---
 
-## 📝 License
-
-Proprietary with free tier. See the [JetBrains Marketplace listing](https://plugins.jetbrains.com/plugin/XXXXX-metal-gpu-monitor) for licensing details.
-
-Free tier is available at no cost. Pro tier requires a paid subscription ($3.90/month) via the JetBrains Marketplace.
-
----
-
 ## 📞 Support
 
 - **Email:** [support@jakubjirak.com](mailto:support@jakubjirak.com)
@@ -168,3 +160,11 @@ Free tier is available at no cost. Pro tier requires a paid subscription ($3.90/
 ## 👤 Credits
 
 Built by **[HTMETA.dev](https://htmeta.dev)** (Jakub Jirák)
+
+## Contributing
+
+Issues and pull requests are welcome at https://github.com/JirakJ/metal-gpu-monitor-plugin.
+
+## License
+
+Copyright 2026 Jakub Jirák. Licensed under the [Apache License, Version 2.0](LICENSE).
