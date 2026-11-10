@@ -113,6 +113,7 @@ tasks {
 detekt {
     config.setFrom(files("detekt.yml"))
     buildUponDefaultConfig = true
+    baseline = file("detekt-baseline.xml")
 }
 
 tasks.register<proguard.gradle.ProGuardTask>("obfuscate") {
