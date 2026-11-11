@@ -31,6 +31,7 @@
     </ul>]]></description>
 
     <change-notes><![CDATA[
+<h3>2026.9.0</h3><ul><li>Settings refresh intervals match the tool window (50 ms - 1 s); OK no longer changes the interval silently.</li><li>The tool window Export button works and the export format (JSON/CSV) is configurable.</li><li>VRAM is read correctly; sizes and exports no longer depend on the system locale.</li><li>Process matching no longer hits unrelated names; thermal alerts respect the alerts setting.</li><li>Per-sample logging moved to DEBUG; removed unused settings.</li></ul>
 <h3>2026.8.0</h3><ul><li>The plugin is now completely free — all features unlocked, no license needed.</li><li>Source code is now open source under Apache-2.0: https://github.com/JirakJ/metal-gpu-monitor-plugin</li></ul>
 
     <h3>1.0.0 — Initial Release</h3>

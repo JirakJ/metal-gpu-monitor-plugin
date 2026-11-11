@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2026.9.0] - 2026-11-11
+
 ### Fixed
 - Settings offered refresh intervals (1–10 s) that did not include the 100 ms default, so the page always looked modified and pressing OK silently changed the interval to 1 s; it now offers the same 50 ms – 1 s choices as the tool window.
 - The tool window's **Export** button did nothing; it now runs Export GPU Data.
