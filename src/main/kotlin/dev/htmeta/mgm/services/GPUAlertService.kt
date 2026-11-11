@@ -5,6 +5,7 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.thisLogger
 import dev.htmeta.mgm.model.*
 import dev.htmeta.mgm.settings.GPUSettingsState
@@ -17,7 +18,7 @@ class GPUAlertService : Disposable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val lastAlertTime = ConcurrentHashMap<String, Long>()
     private val _alertLog = mutableListOf<AlertEvent>()
-    val alertLog: List<AlertEvent> get() = _alertLog.toList()
+    val alertLog: List<AlertEvent> get() = synchronized(_alertLog) { _alertLog.toList() }
     
     private var monitorJob: Job? = null
     
@@ -39,42 +40,17 @@ class GPUAlertService : Disposable {
     
     private fun checkAlerts(snapshot: GPUSnapshot) {
         val settings = GPUSettingsState.getInstance().state
-        if (!settings.alertsEnabled) return
-        
-        val rules = buildDefaultRules(settings)
-        for (rule in rules) {
-            if (rule.isTriggered(snapshot) && !isInCooldown(rule)) {
-                fireAlert(rule, snapshot)
-            }
-        }
-        
-        // Always check thermal state
-        if (snapshot.thermalState == ThermalState.SERIOUS || snapshot.thermalState == ThermalState.CRITICAL) {
-            val thermalRule = AlertRule("thermal", AlertMetric.THERMAL_STATE, 0.5, Comparison.ABOVE, 120)
-            if (!isInCooldown(thermalRule)) {
-                fireAlert(thermalRule, snapshot)
-            }
-        }
+        dueRules(snapshot, settings, lastAlertTime, System.currentTimeMillis()).forEach { fireAlert(it, snapshot) }
     }
-    
-    private fun buildDefaultRules(settings: GPUSettingsState.State): List<AlertRule> {
-        return listOf(
-            AlertRule("gpu_high", AlertMetric.GPU_UTILIZATION, settings.gpuUtilizationThreshold, cooldownSeconds = settings.alertCooldownSeconds),
-            AlertRule("mem_high", AlertMetric.MEMORY_UTILIZATION, settings.memoryUtilizationThreshold, cooldownSeconds = settings.alertCooldownSeconds)
-        )
-    }
-    
-    private fun isInCooldown(rule: AlertRule): Boolean {
-        val lastTime = lastAlertTime[rule.id] ?: return false
-        return System.currentTimeMillis() - lastTime < rule.cooldownSeconds * 1000L
-    }
-    
+
     private fun fireAlert(rule: AlertRule, snapshot: GPUSnapshot) {
         lastAlertTime[rule.id] = System.currentTimeMillis()
         val message = formatAlertMessage(rule, snapshot)
         
-        _alertLog.add(AlertEvent(System.currentTimeMillis(), rule, snapshot, message))
-        if (_alertLog.size > 100) _alertLog.removeFirst()
+        synchronized(_alertLog) {
+            _alertLog.add(AlertEvent(System.currentTimeMillis(), rule, snapshot, message))
+            if (_alertLog.size > MAX_ALERT_LOG) _alertLog.removeAt(0)
+        }
         
         try {
             NotificationGroupManager.getInstance()
@@ -85,7 +61,7 @@ class GPUAlertService : Disposable {
             LOG.warn("Failed to send GPU alert notification", e)
         }
         
-        LOG.info("GPU Alert: $message")
+        LOG.debug { "GPU Alert: $message" }
     }
     
     internal fun formatAlertMessage(rule: AlertRule, snapshot: GPUSnapshot): String {
@@ -115,6 +91,47 @@ class GPUAlertService : Disposable {
     }
     
     companion object {
+        private const val MAX_ALERT_LOG = 100
+        private const val THERMAL_COOLDOWN_SECONDS = 120
+
         fun getInstance(): GPUAlertService = service<GPUAlertService>()
+
+        /** Threshold rules configured in the settings. */
+        internal fun rulesFor(settings: GPUSettingsState.State): List<AlertRule> = listOf(
+            AlertRule(
+                "gpu_high", AlertMetric.GPU_UTILIZATION, settings.gpuUtilizationThreshold,
+                cooldownSeconds = settings.alertCooldownSeconds
+            ),
+            AlertRule(
+                "mem_high", AlertMetric.MEMORY_UTILIZATION, settings.memoryUtilizationThreshold,
+                cooldownSeconds = settings.alertCooldownSeconds
+            )
+        )
+
+        /** Whether [rule] fired less than its cooldown ago. */
+        internal fun isInCooldown(rule: AlertRule, lastAlertTime: Map<String, Long>, now: Long): Boolean {
+            val last = lastAlertTime[rule.id] ?: return false
+            return now - last < rule.cooldownSeconds * 1000L
+        }
+
+        /**
+         * Rules that should fire for [snapshot]: triggered threshold rules (when alerts are enabled) plus a
+         * thermal alert for SERIOUS/CRITICAL states, each outside its cooldown.
+         */
+        internal fun dueRules(
+            snapshot: GPUSnapshot,
+            settings: GPUSettingsState.State,
+            lastAlertTime: Map<String, Long>,
+            now: Long
+        ): List<AlertRule> {
+            val thresholdRules = if (settings.alertsEnabled) rulesFor(settings).filter { it.isTriggered(snapshot) } else emptyList()
+            val thermal = snapshot.thermalState == ThermalState.SERIOUS || snapshot.thermalState == ThermalState.CRITICAL
+            val thermalRules = if (settings.alertsEnabled && thermal) {
+                listOf(AlertRule("thermal", AlertMetric.THERMAL_STATE, 0.5, Comparison.ABOVE, THERMAL_COOLDOWN_SECONDS))
+            } else {
+                emptyList()
+            }
+            return (thresholdRules + thermalRules).filter { !isInCooldown(it, lastAlertTime, now) }
+        }
     }
 }

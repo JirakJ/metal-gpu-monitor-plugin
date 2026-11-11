@@ -50,5 +50,7 @@ class GPUInfoPanel : JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(12), JBUI.sca
         memoryBar.string = "Memory: $allocMB / $totalMB MB ($pct%)"
     }
 
-    override fun dispose() {}
+    override fun dispose() {
+        // Nothing to release: the panel only renders device information.
+    }
 }

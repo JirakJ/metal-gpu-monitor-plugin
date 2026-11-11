@@ -5,11 +5,9 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
-import dev.htmeta.mgm.model.GPUSnapshot
 import dev.htmeta.mgm.services.GPUHistoryService
 import dev.htmeta.mgm.services.GPUMonitoringService
 import dev.htmeta.mgm.settings.GPUSettingsState
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,8 +33,10 @@ class ExportGPUDataAction : AnAction() {
             val current = GPUMonitoringService.getInstance().latestSnapshot()
             val history = GPUHistoryService.getInstance().getFullHistory()
             when (format) {
-                GPUSettingsState.ExportFormat.JSON -> exportJson(file, current, history)
-                GPUSettingsState.ExportFormat.CSV -> exportCsv(file, current, history)
+                GPUSettingsState.ExportFormat.JSON -> file.writeText(
+                    GPUDataExporter.toJson(current, history, SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(Date()))
+                )
+                GPUSettingsState.ExportFormat.CSV -> file.writeText(GPUDataExporter.toCsv(current, history))
             }
             LOG.info("GPU data exported to ${file.absolutePath}")
         } catch (ex: Exception) {
@@ -50,45 +50,5 @@ class ExportGPUDataAction : AnAction() {
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabled = true
-    }
-
-    private fun exportJson(file: File, current: GPUSnapshot, history: List<GPUSnapshot>) {
-        val sb = StringBuilder()
-        sb.appendLine("{")
-        sb.appendLine("  \"exportTime\": \"${SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(Date())}\",")
-        sb.appendLine("  \"current\": ${snapshotToJson(current)},")
-        sb.appendLine("  \"history\": [")
-        history.forEachIndexed { index, snapshot ->
-            val comma = if (index < history.size - 1) "," else ""
-            sb.appendLine("    ${snapshotToJson(snapshot)}$comma")
-        }
-        sb.appendLine("  ]")
-        sb.appendLine("}")
-        file.writeText(sb.toString())
-    }
-
-    private fun snapshotToJson(s: GPUSnapshot): String {
-        return buildString {
-            append("{")
-            append("\"timestamp\":${s.timestamp},")
-            append("\"gpuUtilization\":${s.gpuUtilization},")
-            append("\"gpuFrequencyMHz\":${s.gpuFrequencyMHz ?: "null"},")
-            append("\"memoryAllocatedBytes\":${s.memoryAllocatedBytes},")
-            append("\"memoryTotalBytes\":${s.memoryTotalBytes},")
-            append("\"memoryUtilization\":${s.memoryUtilization},")
-            append("\"thermalState\":\"${s.thermalState.name}\",")
-            append("\"gpuPowerWatts\":${s.gpuPowerWatts ?: "null"},")
-            append("\"renderUtilization\":${s.renderUtilization ?: "null"},")
-            append("\"computeUtilization\":${s.computeUtilization ?: "null"}")
-            append("}")
-        }
-    }
-
-    private fun exportCsv(file: File, current: GPUSnapshot, history: List<GPUSnapshot>) {
-        val header = "timestamp,gpuUtilization,gpuFrequencyMHz,memoryAllocatedBytes,memoryTotalBytes,memoryUtilization,thermalState,gpuPowerWatts,renderUtilization,computeUtilization"
-        val rows = (history + current).joinToString("\n") { s ->
-            "${s.timestamp},${s.gpuUtilization},${s.gpuFrequencyMHz ?: ""},${s.memoryAllocatedBytes},${s.memoryTotalBytes},${s.memoryUtilization},${s.thermalState.name},${s.gpuPowerWatts ?: ""},${s.renderUtilization ?: ""},${s.computeUtilization ?: ""}"
-        }
-        file.writeText("$header\n$rows\n")
     }
 }

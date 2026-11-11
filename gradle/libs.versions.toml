@@ -5,7 +5,6 @@ jna = "5.16.0"
 junit = "5.11.4"
 mockk = "1.13.13"
 detekt = "1.23.7"
-proguard = "7.6.1"
 
 [libraries]
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }

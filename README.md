@@ -14,52 +14,16 @@
 
 ## ✨ Features
 
-### Feature Overview
+- **Status bar widget** — GPU utilization at a glance (icon + %, % only, or bar; can be turned off)
+- **Tool window** — live chart of GPU utilization and memory, device info (model, vendor, cores, memory),
+  and a list of GPU-related processes with the IDE and WindowServer first
+- **Thermal state** — Nominal / Fair / Serious / Critical as reported by the system
+- **Alerts** — notifications when GPU utilization or memory exceeds a threshold, or the thermal state becomes
+  Serious/Critical, with a configurable cooldown
+- **Export** — the last 5 minutes of samples plus the current snapshot as JSON or CSV
 
-| Feature | Included |
-|---------|:--------:|
-| Status bar GPU widget | ✅ |
-| Real-time GPU utilization | ✅ |
-| Memory usage tracking | ✅ |
-| Thermal state monitoring | ✅ |
-| Tool window with live charts | ✅ |
-| 5-minute history | ✅ |
-| Basic device info | ✅ |
-| 24-hour extended history | ✅ |
-| Configurable alerts | ✅ |
-| Data export (JSON/CSV) | ✅ |
-| Full per-process GPU list | ✅ |
-| Custom dashboard layouts | ✅ |
-
-### 📊 Monitoring
-
-- **Status Bar Widget** — At-a-glance GPU utilization percentage with color-coded indicator
-- **Tool Window** — Dedicated bottom panel with live charts for GPU utilization and memory usage
-- **Thermal Monitoring** — Real-time thermal state reporting (Nominal, Fair, Serious, Critical)
-- **Basic Process Tracking** — See top GPU-consuming processes
-- **5-Minute History** — Short-term charts for recent GPU activity
-- **Device Info** — GPU model, vendor, and core count display
-
-### 🚀 Advanced
-
-- **24-Hour History** — Extended historical data retention with scrollable charts
-- **Configurable Alerts** — Get notified when GPU utilization or memory exceeds custom thresholds
-- **Data Export** — Export monitoring data to JSON or CSV for external analysis
-- **Full Process List** — Complete per-process GPU usage with IDE process highlighting
-- **Custom Layouts** — Rearrange and configure dashboard panels to your preference
-
----
-
-## 📸 Screenshots
-
-| Screenshot | Description |
-|------------|-------------|
-| ![Status Bar Widget](docs/screenshots/statusbar.png) | GPU utilization in the status bar with color-coded indicator |
-| ![Tool Window](docs/screenshots/toolwindow.png) | Live charts for utilization and memory in the dedicated tool window |
-| ![Process Table](docs/screenshots/processes.png) | Per-process GPU usage with IDE process highlighting |
-| ![Settings](docs/screenshots/settings.png) | Configuration panel for alerts, thresholds, and display options |
-
-> *Screenshots are placeholder references. Actual screenshots will be added before marketplace publication.*
+macOS does not expose GPU utilization per process, so the process list shows which processes are likely using
+the GPU (no per-process percentages).
 
 ---
 
@@ -85,8 +49,7 @@
 |-------------|---------|
 | **Operating System** | macOS 14+ (Sonoma or later) |
 | **Hardware** | Apple Silicon (M1/M2/M3/M4) or Intel Mac with integrated/discrete GPU |
-| **JetBrains IDE** | IntelliJ IDEA 2025.1+ (or any compatible JetBrains IDE, build 251+) |
-| **Java** | 17+ |
+| **JetBrains IDE** | Any JetBrains IDE 2025.1+ (build 251+) |
 
 ---
 
@@ -96,13 +59,13 @@ Settings are available at **Settings → Tools → GPU Monitor**.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Enable monitoring | `true` | Start/stop GPU monitoring |
-| Polling interval | `100ms` | How often GPU metrics are refreshed (50ms - 1s) |
-| Status bar display | `Percentage` | Format of the status bar widget (percentage, graph, or both) |
-| Alert: GPU utilization | `90%` | Notification threshold for GPU usage (Pro) |
-| Alert: Memory usage | `80%` | Notification threshold for GPU memory (Pro) |
-| Alert cooldown | `5 min` | Minimum interval between repeated alerts (Pro) |
-| History retention | `5 min` / `24 hr` | Data retention period (Free / Pro) |
+| Refresh interval | `100ms` | How often GPU metrics are sampled (50ms – 1s; also in the tool window toolbar) |
+| Status bar format | `Icon + %` | Icon + %, % only, bar, or off |
+| Export format | `JSON` | Format used by **Export GPU Data...** and the tool window's Export button |
+| Enable GPU alerts | `true` | Turns threshold and thermal alerts on or off |
+| GPU threshold | `80%` | Alert when GPU utilization exceeds this |
+| Memory threshold | `90%` | Alert when GPU memory usage exceeds this |
+| Alert cooldown | `60 s` | Minimum interval between repeated alerts of the same kind |
 
 ### Toggle Monitoring
 
@@ -110,14 +73,14 @@ Use **Tools → GPU Monitor → Toggle GPU Monitoring** or the action search (`�
 
 ### Export Data
 
-Use **Tools → GPU Monitor → Export GPU Data...** to save monitoring history to JSON or CSV (Pro).
+Use **Tools → GPU Monitor → Export GPU Data...** (or the tool window's **Export** button) to save the last 5 minutes of samples to JSON or CSV.
 
 ---
 
 ## ❓ FAQ
 
 **Q: Why is this macOS only?**
-A: Metal GPU Monitor uses native macOS IOKit APIs and the Metal framework to access GPU performance counters. These APIs are specific to Apple's operating system and hardware. There is no cross-platform equivalent that provides the same level of detail.
+A: Metal GPU Monitor reads GPU performance statistics through the native macOS IOKit API. These APIs are specific to Apple's operating system and hardware. There is no cross-platform equivalent that provides the same level of detail.
 
 **Q: How is GPU data collected?**
 A: The plugin uses JNA (Java Native Access) to call macOS IOKit functions that read GPU performance statistics directly from the kernel. This is the same data source that Activity Monitor and other system tools use — no additional drivers or permissions are required.
@@ -125,11 +88,8 @@ A: The plugin uses JNA (Java Native Access) to call macOS IOKit functions that r
 **Q: Will it slow down my IDE?**
 A: No. GPU polling runs on a background thread with a configurable interval (default 100ms, adjustable from 50ms to 1s). The overhead is negligible — comparable to having Activity Monitor open.
 
-**Q: Does it support external GPUs (eGPUs)?**
-A: Yes, any GPU visible to macOS IOKit will be detected, including eGPUs connected via Thunderbolt.
-
 **Q: What JetBrains IDEs are supported?**
-A: All JetBrains IDEs based on the IntelliJ Platform 2024.2+: IntelliJ IDEA, PyCharm, WebStorm, GoLand, CLion, PhpStorm, Rider, RubyMine, and Android Studio.
+A: All JetBrains IDEs based on the IntelliJ Platform 2025.1+: IntelliJ IDEA, PyCharm, WebStorm, GoLand, CLion, PhpStorm, Rider, RubyMine, and Android Studio.
 
 ---
 

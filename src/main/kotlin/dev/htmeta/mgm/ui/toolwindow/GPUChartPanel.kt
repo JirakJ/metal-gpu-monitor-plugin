@@ -1,6 +1,7 @@
 package dev.htmeta.mgm.ui.toolwindow
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
@@ -36,9 +37,7 @@ class GPUChartPanel : JPanel(), Disposable {
             memBuffer.addLast(memoryUtilization.coerceIn(0.0, 1.0))
         }
         dataPointCount++
-        if (dataPointCount <= 3 || dataPointCount % 100 == 0) {
-            LOG.info("GPUChartPanel: addDataPoint #$dataPointCount - GPU: ${(gpuUtilization * 100).toInt()}%, Mem: ${(memoryUtilization * 100).toInt()}%, bufferSize: ${gpuBuffer.size}")
-        }
+        LOG.debug { "addDataPoint #$dataPointCount GPU=${(gpuUtilization * 100).toInt()}% MEM=${(memoryUtilization * 100).toInt()}%" }
         // Force repaint on EDT
         if (javax.swing.SwingUtilities.isEventDispatchThread()) {
             revalidate()
@@ -76,8 +75,9 @@ class GPUChartPanel : JPanel(), Disposable {
         }
 
         // Always draw grid and axes
-        drawGrid(g2, chartX, chartY, chartW, chartH)
-        drawAxes(g2, chartX, chartY, chartW, chartH)
+        val chartArea = java.awt.Rectangle(chartX, chartY, chartW, chartH)
+        drawGrid(g2, chartArea)
+        drawAxes(g2, chartArea)
 
         val gpuPoints: List<Double>
         val memPoints: List<Double>
@@ -87,8 +87,8 @@ class GPUChartPanel : JPanel(), Disposable {
         }
 
         if (gpuPoints.isNotEmpty()) {
-            drawAreaChart(g2, gpuPoints, chartX, chartY, chartW, chartH)
-            drawLine(g2, memPoints, chartX, chartY, chartW, chartH, memLineColor)
+            drawAreaChart(g2, gpuPoints, chartArea)
+            drawLine(g2, memPoints, chartArea, memLineColor)
             drawOverlayText(g2, gpuPoints.last(), chartX, chartY, chartW)
         } else {
             // Show waiting message
@@ -102,7 +102,11 @@ class GPUChartPanel : JPanel(), Disposable {
         g2.dispose()
     }
 
-    private fun drawGrid(g2: Graphics2D, x: Int, y: Int, w: Int, h: Int) {
+    private fun drawGrid(g2: Graphics2D, area: java.awt.Rectangle) {
+        val x = area.x
+        val y = area.y
+        val w = area.width
+        val h = area.height
         g2.color = gridColor
         g2.stroke = BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, floatArrayOf(4f, 4f), 0f)
         for (i in 0..4) {
@@ -115,7 +119,11 @@ class GPUChartPanel : JPanel(), Disposable {
         }
     }
 
-    private fun drawAreaChart(g2: Graphics2D, points: List<Double>, x: Int, y: Int, w: Int, h: Int) {
+    private fun drawAreaChart(g2: Graphics2D, points: List<Double>, area: java.awt.Rectangle) {
+        val x = area.x
+        val y = area.y
+        val w = area.width
+        val h = area.height
         val n = points.size
         val xStep = if (n > 1) w.toDouble() / (MAX_POINTS - 1) else 0.0
         val xOffset = if (n < MAX_POINTS) (MAX_POINTS - n) * xStep else 0.0
@@ -146,7 +154,11 @@ class GPUChartPanel : JPanel(), Disposable {
         }
     }
 
-    private fun drawLine(g2: Graphics2D, points: List<Double>, x: Int, y: Int, w: Int, h: Int, color: Color) {
+    private fun drawLine(g2: Graphics2D, points: List<Double>, area: java.awt.Rectangle, color: Color) {
+        val x = area.x
+        val y = area.y
+        val w = area.width
+        val h = area.height
         if (points.size < 2) return
         val n = points.size
         val xStep = if (n > 1) w.toDouble() / (MAX_POINTS - 1) else 0.0
@@ -172,7 +184,11 @@ class GPUChartPanel : JPanel(), Disposable {
         g2.drawString(text, x + w - fm.stringWidth(text) - JBUI.scale(4), y + fm.height + JBUI.scale(2))
     }
 
-    private fun drawAxes(g2: Graphics2D, x: Int, y: Int, w: Int, h: Int) {
+    private fun drawAxes(g2: Graphics2D, area: java.awt.Rectangle) {
+        val x = area.x
+        val y = area.y
+        val w = area.width
+        val h = area.height
         g2.font = g2.font.deriveFont(Font.PLAIN, JBUI.scale(10).toFloat())
         g2.color = textColor
         val fm = g2.fontMetrics

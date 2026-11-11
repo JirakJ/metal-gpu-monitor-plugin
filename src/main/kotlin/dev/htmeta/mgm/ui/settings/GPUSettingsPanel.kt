@@ -2,18 +2,16 @@ package dev.htmeta.mgm.ui.settings
 
 import com.intellij.util.ui.JBUI
 import dev.htmeta.mgm.settings.GPUSettingsState
+import dev.htmeta.mgm.settings.RefreshIntervals
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import javax.swing.*
 
 class GPUSettingsPanel : JPanel(GridBagLayout()) {
 
-    private val refreshIntervalCombo = JComboBox(arrayOf(
-        IntervalItem(1000L, "1 second"),
-        IntervalItem(2000L, "2 seconds"),
-        IntervalItem(5000L, "5 seconds"),
-        IntervalItem(10000L, "10 seconds")
-    ))
+    // Same choices as the tool window's Refresh combo (default 100ms), so the stored value is always selectable.
+    private val refreshIntervalCombo = JComboBox(RefreshIntervals.labels)
+    private val exportFormatCombo = JComboBox(GPUSettingsState.ExportFormat.values())
 
     private val statusBarFormatCombo = JComboBox(arrayOf(
         FormatItem(GPUSettingsState.StatusBarFormat.ICON_PERCENT, "Icon + %"),
@@ -37,15 +35,12 @@ class GPUSettingsPanel : JPanel(GridBagLayout()) {
     private val alertsEnabledCheckBox = JCheckBox("Enable GPU alerts")
 
     var refreshIntervalMs: Long
-        get() = (refreshIntervalCombo.selectedItem as? IntervalItem)?.ms ?: 1000L
-        set(value) {
-            for (i in 0 until refreshIntervalCombo.itemCount) {
-                if (refreshIntervalCombo.getItemAt(i).ms == value) {
-                    refreshIntervalCombo.selectedIndex = i
-                    return
-                }
-            }
-        }
+        get() = RefreshIntervals.msFor(refreshIntervalCombo.selectedItem as? String)
+        set(value) { refreshIntervalCombo.selectedItem = RefreshIntervals.labelFor(value) }
+
+    var exportFormat: GPUSettingsState.ExportFormat
+        get() = exportFormatCombo.selectedItem as? GPUSettingsState.ExportFormat ?: GPUSettingsState.ExportFormat.JSON
+        set(value) { exportFormatCombo.selectedItem = value }
 
     var statusBarFormat: GPUSettingsState.StatusBarFormat
         get() = (statusBarFormatCombo.selectedItem as? FormatItem)?.format
@@ -92,6 +87,7 @@ class GPUSettingsPanel : JPanel(GridBagLayout()) {
         addSectionLabel("General", row++, gbc)
         addLabeledRow("Refresh interval:", refreshIntervalCombo, row++, gbc)
         addLabeledRow("Status bar format:", statusBarFormatCombo, row++, gbc)
+        addLabeledRow("Export format:", exportFormatCombo, row++, gbc)
 
         // Separator
         addSeparator(row++, gbc)
@@ -137,9 +133,6 @@ class GPUSettingsPanel : JPanel(GridBagLayout()) {
         gbc.gridwidth = 1; gbc.fill = GridBagConstraints.NONE
     }
 
-    private data class IntervalItem(val ms: Long, val label: String) {
-        override fun toString(): String = label
-    }
 
     private data class FormatItem(val format: GPUSettingsState.StatusBarFormat, val label: String) {
         override fun toString(): String = label

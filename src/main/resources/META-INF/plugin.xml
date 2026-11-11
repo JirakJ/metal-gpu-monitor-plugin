@@ -16,22 +16,18 @@
 
     <h3>Features</h3>
     <ul>
-        <li><b>Status Bar Widget</b> — At-a-glance GPU utilization percentage with color-coded indicator</li>
-        <li><b>Tool Window</b> — Dedicated bottom panel with live charts for GPU utilization and memory usage over time</li>
-        <li><b>Per-Process Tracking</b> — See which processes are consuming GPU resources, with IDE process highlighting</li>
-        <li><b>Thermal Monitoring</b> — Real-time thermal state reporting (Nominal, Fair, Serious, Critical)</li>
-        <li><b>Configurable Alerts</b> — Get notified when GPU utilization or memory exceeds your thresholds</li>
-        <li><b>Data Export</b> — Export monitoring data to JSON or CSV for analysis</li>
-        <li><b>24-Hour History</b> — Extended historical data retention with charts</li>
+        <li><b>Status Bar Widget</b> — GPU utilization at a glance (icon + %, % only, or bar)</li>
+        <li><b>Tool Window</b> — live chart of GPU utilization and memory, device info, and a list of GPU-related processes (the IDE and WindowServer first)</li>
+        <li><b>Thermal State</b> — Nominal / Fair / Serious / Critical as reported by the system</li>
+        <li><b>Alerts</b> — notifications when GPU utilization or memory exceeds your thresholds, or the thermal state becomes serious, with a cooldown</li>
+        <li><b>Data Export</b> — the last 5 minutes of samples plus the current one as JSON or CSV</li>
     </ul>
-
-    
-
+    <p>macOS does not report GPU utilization per process, so the process list shows which processes are likely using the GPU, not how much.</p>
     <h3>Requirements</h3>
     <ul>
-        <li><b>macOS only</b> — Uses native macOS IOKit APIs and Metal framework for GPU data</li>
-        <li>Apple Silicon (M1/M2/M3/M4) or Intel Mac with discrete/integrated GPU</li>
-        <li>IntelliJ Platform 2024.2 or later</li>
+        <li><b>macOS only</b> — reads GPU statistics through the native IOKit API</li>
+        <li>Apple Silicon or Intel Mac</li>
+        <li>IntelliJ Platform 2025.1 or later</li>
     </ul>]]></description>
 
     <change-notes><![CDATA[

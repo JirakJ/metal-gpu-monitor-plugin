@@ -10,6 +10,5 @@ data class GPUDeviceInfo(
 ) {
     companion object {
         val UNKNOWN = GPUDeviceInfo("Unknown GPU", GPUVendor.UNKNOWN, 0, null, 0, null)
-        fun sample() = GPUDeviceInfo("Apple M3 Pro", GPUVendor.APPLE, 18, 1398, 38_654_705_664L, "Metal 3")
     }
 }

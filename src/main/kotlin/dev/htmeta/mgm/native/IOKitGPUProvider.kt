@@ -9,7 +9,6 @@ import com.sun.jna.ptr.LongByReference
 import com.sun.jna.ptr.PointerByReference
 import dev.htmeta.mgm.model.GPUDeviceInfo
 import dev.htmeta.mgm.model.GPUSnapshot
-import dev.htmeta.mgm.model.GPUVendor
 import dev.htmeta.mgm.model.ProcessGPUUsage
 import dev.htmeta.mgm.model.ThermalState
 import java.util.concurrent.locks.ReentrantLock
@@ -28,6 +27,7 @@ import kotlin.concurrent.withLock
 class IOKitGPUProvider : GPUProvider {
 
     private val log = thisLogger()
+    private val cfDict = CFDict()
     private val lock = ReentrantLock()
     private var initialized = false
     private var cachedDeviceInfo: GPUDeviceInfo? = null
@@ -125,6 +125,23 @@ class IOKitGPUProvider : GPUProvider {
     // Known IOKit key patterns for GPU metrics (vary across hardware)
     // ---------------------------------------------------------------------------
     private companion object {
+        /**
+         * Falls back to total physical memory as an approximation for unified-memory Apple Silicon.
+         */
+        fun estimateSystemMemory(): Long {
+            return try {
+                val proc = Runtime.getRuntime().exec(arrayOf("sysctl", "-n", "hw.memsize"))
+                val output = proc.inputStream.bufferedReader().readText()
+                proc.waitFor()
+                GPUMetrics.parseMemSize(output)
+            } catch (_: Exception) {
+                0L
+            }
+        }
+
+        const val PID_BUFFER_SLACK = 64
+        const val PROC_NAME_BUFFER = 256
+
         /** Service class names to probe – ordered by preference. */
         val GPU_SERVICE_NAMES = listOf(
             "AGXAccelerator",          // Apple Silicon
@@ -195,16 +212,16 @@ class IOKitGPUProvider : GPUProvider {
     override fun initialize(): Boolean = lock.withLock {
         if (initialized) return true
         try {
-            log.info("IOKitGPUProvider: loading native libraries...")
+            log.debug("IOKitGPUProvider: loading native libraries")
             ioKit = Native.load("IOKit", IOKit::class.java)
-            log.info("IOKitGPUProvider: IOKit loaded")
+            log.debug("IOKitGPUProvider: IOKit loaded")
             cf = Native.load("CoreFoundation", CF::class.java)
-            log.info("IOKitGPUProvider: CoreFoundation loaded")
+            log.debug("IOKitGPUProvider: CoreFoundation loaded")
             libProc = Native.load("System.B", LibProc::class.java)
-            log.info("IOKitGPUProvider: libproc loaded")
+            log.debug("IOKitGPUProvider: libproc loaded")
 
             // Verify we can reach at least one GPU service
-            log.info("IOKitGPUProvider: searching for GPU service...")
+            log.debug("IOKitGPUProvider: searching for GPU service")
             val found = findGPUServiceEntry()
             if (found != 0) {
                 ioKit!!.IOObjectRelease(found)
@@ -213,12 +230,12 @@ class IOKitGPUProvider : GPUProvider {
             } else {
                 log.warn("No GPU accelerator service found via IOKit. Searched: $GPU_SERVICE_NAMES")
             }
-        } catch (e: UnsatisfiedLinkError) {
+        } catch (e: LinkageError) {
             log.warn("Failed to load native libraries for IOKit GPU provider: ${e.message}", e)
         } catch (e: Exception) {
             log.error("Unexpected error during IOKitGPUProvider initialization: ${e.message}", e)
         }
-        log.info("IOKitGPUProvider initialization result: $initialized")
+        log.debug("IOKitGPUProvider initialization result: $initialized")
         return initialized
     }
 
@@ -279,16 +296,17 @@ class IOKitGPUProvider : GPUProvider {
      */
     private fun findGPUServiceEntry(): Int {
         val kit = ioKit ?: return 0
-        for (serviceName in GPU_SERVICE_NAMES) {
-            val matchDict = kit.IOServiceMatching(serviceName) ?: continue
-            val iterator = IntByReference()
-            val kr = kit.IOServiceGetMatchingServices(IOKit.MASTER_PORT, matchDict, iterator)
-            if (kr != IOKit.KERN_SUCCESS) continue
-            val entry = kit.IOIteratorNext(iterator.value)
-            kit.IOObjectRelease(iterator.value)
-            if (entry != 0) return entry
-        }
-        return 0
+        return GPU_SERVICE_NAMES.asSequence().map { firstMatchingService(kit, it) }.firstOrNull { it != 0 } ?: 0
+    }
+
+    /** First IOService registered under [serviceName], or `0`. Caller releases the returned handle. */
+    private fun firstMatchingService(kit: IOKit, serviceName: String): Int {
+        val matchDict = kit.IOServiceMatching(serviceName) ?: return 0
+        val iterator = IntByReference()
+        if (kit.IOServiceGetMatchingServices(IOKit.MASTER_PORT, matchDict, iterator) != IOKit.KERN_SUCCESS) return 0
+        val entry = kit.IOIteratorNext(iterator.value)
+        kit.IOObjectRelease(iterator.value)
+        return entry
     }
 
     // =========================================================================
@@ -308,26 +326,22 @@ class IOKitGPUProvider : GPUProvider {
 
             val props = propsRef.value!!
             try {
-                val perfStats = getDictionaryValue(props, "PerformanceStatistics")
+                val perfStats = cfDict.getDictionaryValue(props, "PerformanceStatistics")
 
                 // Source dict: prefer PerformanceStatistics sub-dict, fall back to root properties
                 val source = perfStats ?: props
 
-                val utilization = findDoubleMetric(source, UTILIZATION_KEYS)
-                val memAlloc = findLongMetric(source, MEMORY_ALLOC_KEYS)
-                val memTotal = findLongMetric(source, MEMORY_TOTAL_KEYS)
-                val frequency = findLongMetric(source, FREQUENCY_KEYS)?.toInt()
-                val power = findDoubleMetric(source, POWER_KEYS)
-                val renderUtil = findDoubleMetric(source, RENDER_UTIL_KEYS)
-                val computeUtil = findDoubleMetric(source, COMPUTE_UTIL_KEYS)
+                val utilization = cfDict.findDoubleMetric(source, UTILIZATION_KEYS)
+                val memAlloc = cfDict.findLongMetric(source, MEMORY_ALLOC_KEYS)
+                val memTotal = cfDict.findMemoryBytes(source, MEMORY_TOTAL_KEYS)
+                val frequency = cfDict.findLongMetric(source, FREQUENCY_KEYS)?.toInt()
+                val power = cfDict.findDoubleMetric(source, POWER_KEYS)
+                val renderUtil = cfDict.findDoubleMetric(source, RENDER_UTIL_KEYS)
+                val computeUtil = cfDict.findDoubleMetric(source, COMPUTE_UTIL_KEYS)
                 val thermal = readThermalState()
 
-                // Normalize utilization: IOKit may report 0-100 or 0.0-1.0
-                val gpuUtil = when {
-                    utilization == null -> 0.0
-                    utilization > 1.0 -> (utilization / 100.0).coerceIn(0.0, 1.0)
-                    else -> utilization.coerceIn(0.0, 1.0)
-                }
+                // IOKit may report 0-100 or 0.0-1.0
+                val gpuUtil = utilization?.let { GPUMetrics.normalizePercent(it) } ?: 0.0
 
                 return GPUSnapshot(
                     timestamp = System.currentTimeMillis(),
@@ -336,9 +350,9 @@ class IOKitGPUProvider : GPUProvider {
                     memoryAllocatedBytes = memAlloc ?: 0L,
                     memoryTotalBytes = memTotal ?: deviceInfo().memoryTotalBytes,
                     thermalState = thermal,
-                    gpuPowerWatts = normalizePower(power),
-                    renderUtilization = renderUtil?.let { normalizePercent(it) },
-                    computeUtilization = computeUtil?.let { normalizePercent(it) },
+                    gpuPowerWatts = GPUMetrics.normalizePower(power),
+                    renderUtilization = renderUtil?.let { GPUMetrics.normalizePercent(it) },
+                    computeUtilization = computeUtil?.let { GPUMetrics.normalizePercent(it) },
                 )
             } finally {
                 core.CFRelease(props)
@@ -365,21 +379,16 @@ class IOKitGPUProvider : GPUProvider {
 
             val props = propsRef.value!!
             try {
-                val name = getStringValue(props, "model")
+                val name = cfDict.getStringValue(props, "model")
                     ?: getClassName(entry)
                     ?: "Unknown GPU"
 
-                val vendor = detectVendor(name)
-                val memTotal = findLongMetric(props, MEMORY_TOTAL_KEYS) ?: estimateSystemMemory()
-                val coreCount = getLongValue(props, "gpu-core-count")?.toInt() ?: 0
-                val maxClock = getLongValue(props, "gpu-max-clock-mhz")?.toInt()
+                val vendor = GPUMetrics.detectVendor(name)
+                val memTotal = cfDict.findMemoryBytes(props, MEMORY_TOTAL_KEYS) ?: estimateSystemMemory()
+                val coreCount = cfDict.getLongValue(props, "gpu-core-count")?.toInt() ?: 0
+                val maxClock = cfDict.getLongValue(props, "gpu-max-clock-mhz")?.toInt()
 
-                val metalFeature = when (vendor) {
-                    GPUVendor.APPLE -> "Metal 3"
-                    GPUVendor.AMD -> "Metal 2"
-                    GPUVendor.INTEL -> "Metal 1"
-                    else -> null
-                }
+                val metalFeature = GPUMetrics.metalFeatureSet(vendor)
 
                 return GPUDeviceInfo(
                     name = name,
@@ -397,147 +406,46 @@ class IOKitGPUProvider : GPUProvider {
         }
     }
 
-    private fun detectVendor(name: String): GPUVendor {
-        val lower = name.lowercase()
-        return when {
-            "apple" in lower || "agx" in lower || "m1" in lower || "m2" in lower || "m3" in lower || "m4" in lower -> GPUVendor.APPLE
-            "amd" in lower || "radeon" in lower -> GPUVendor.AMD
-            "intel" in lower -> GPUVendor.INTEL
-            else -> GPUVendor.UNKNOWN
-        }
-    }
-
-    /**
-     * Falls back to total physical memory as an approximation for unified-memory Apple Silicon.
-     */
-    private fun estimateSystemMemory(): Long {
-        return try {
-            val proc = Runtime.getRuntime().exec(arrayOf("sysctl", "-n", "hw.memsize"))
-            val output = proc.inputStream.bufferedReader().readText().trim()
-            proc.waitFor()
-            output.toLongOrNull() ?: 0L
-        } catch (_: Exception) {
-            0L
-        }
-    }
-
     // =========================================================================
     // Internal: process GPU usage
     // =========================================================================
 
     /**
-     * Enumerates running processes and reports those likely using the GPU.
-     * Shows all processes matching known GPU-using patterns.
+     * Enumerates running processes and reports the IDE, WindowServer and likely GPU users
+     * (selection in [GPUMetrics.selectGpuProcesses]).
      */
     private fun readProcesses(): List<ProcessGPUUsage> {
         val proc = libProc ?: run {
             log.warn("libProc not available for process enumeration")
             return emptyList()
         }
-        val results = mutableListOf<ProcessGPUUsage>()
+        return GPUMetrics.selectGpuProcesses(listProcesses(proc), ProcessHandle.current().pid().toInt())
+    }
 
-        // Get all PIDs
+    /** All `(pid, name)` pairs reported by libproc. */
+    private fun listProcesses(proc: LibProc): List<Pair<Int, String>> {
         val estimatedCount = proc.proc_listallpids(null, 0) / Int.SIZE_BYTES
-        if (estimatedCount <= 0) {
-            log.warn("proc_listallpids returned 0 processes")
-            return emptyList()
-        }
-
-        val pidBuffer = IntArray(estimatedCount + 64)
+        if (estimatedCount <= 0) return emptyList()
+        val pidBuffer = IntArray(estimatedCount + PID_BUFFER_SLACK)
         val bytesWritten = proc.proc_listallpids(pidBuffer, pidBuffer.size * Int.SIZE_BYTES)
-        if (bytesWritten <= 0) {
-            log.warn("proc_listallpids failed to fill buffer")
-            return emptyList()
-        }
-
-        val pidCount = bytesWritten / Int.SIZE_BYTES
-        val myPid = ProcessHandle.current().pid().toInt()
-        val nameBuffer = ByteArray(256)
-
-        for (i in 0 until pidCount) {
-            val pid = pidBuffer[i]
-            if (pid <= 0) continue
-
+        if (bytesWritten <= 0) return emptyList()
+        val nameBuffer = ByteArray(PROC_NAME_BUFFER)
+        return pidBuffer.take(bytesWritten / Int.SIZE_BYTES).filter { it > 0 }.mapNotNull { pid ->
             nameBuffer.fill(0)
             val nameLen = proc.proc_name(pid, nameBuffer, nameBuffer.size)
-            if (nameLen <= 0) continue
-
-            val name = String(nameBuffer, 0, nameLen)
-            val isIDE = pid == myPid
-            val isGpuProcess = isLikelyGpuProcess(name)
-
-            if (isIDE || isGpuProcess) {
-                results.add(
-                    ProcessGPUUsage(
-                        pid = pid,
-                        processName = name,
-                        gpuUtilization = 0.0,  // macOS doesn't expose per-process GPU %
-                        gpuMemoryBytes = 0L,
-                        isIDEProcess = isIDE,
-                    )
-                )
-            }
+            if (nameLen > 0) pid to String(nameBuffer, 0, nameLen) else null
         }
-
-        // Always include WindowServer if found (main GPU process on macOS)
-        if (results.none { it.processName.contains("WindowServer", ignoreCase = true) }) {
-            // Try to find WindowServer specifically
-            for (i in 0 until pidCount) {
-                val pid = pidBuffer[i]
-                if (pid <= 0) continue
-                nameBuffer.fill(0)
-                val nameLen = proc.proc_name(pid, nameBuffer, nameBuffer.size)
-                if (nameLen > 0) {
-                    val name = String(nameBuffer, 0, nameLen)
-                    if (name.equals("WindowServer", ignoreCase = true)) {
-                        results.add(0, ProcessGPUUsage(pid, name, 0.0, 0L, false))
-                        break
-                    }
-                }
-            }
-        }
-
-        return results.sortedWith(compareByDescending<ProcessGPUUsage> { it.isIDEProcess }
-            .thenByDescending { it.processName.equals("WindowServer", ignoreCase = true) })
     }
-
-    /** Check if process name suggests GPU usage */
-    private fun isLikelyGpuProcess(name: String): Boolean {
-        val lower = name.lowercase()
-        return GPU_PROCESS_PATTERNS.any { pattern -> lower.contains(pattern) }
-    }
-
-    private val GPU_PROCESS_PATTERNS = listOf(
-        // System GPU processes
-        "windowserver", "gpuswitch", "mtlcompilerservice", "metalcompilerservice",
-        "corebrightness", "skylight", "quartz", "coreanimation",
-        // Browsers & web
-        "chrome", "firefox", "safari", "webkit", "electron", "gpu process", "gpu-process",
-        "chromium", "brave", "edge", "opera", "vivaldi", "arc",
-        // JetBrains IDEs
-        "idea", "webstorm", "pycharm", "clion", "rider", "goland", "rubymine", "phpstorm",
-        "appcode", "datagrip", "fleet",
-        // Apple apps
-        "xcode", "simulator", "instruments", "finder", "dock", "systemuiserver",
-        // Creative/3D
-        "blender", "unity", "unreal", "maya", "cinema4d", "houdini", "zbrush",
-        "premiere", "aftereffects", "photoshop", "illustrator", "lightroom",
-        "figma", "sketch", "affinity", "davinci", "finalcut", "motion", "compressor",
-        // Media
-        "vlc", "iina", "quicktime", "music", "tv", "photos", "preview",
-        // Games
-        "steam", "game", "mtl"
-    )
 
     // =========================================================================
     // Internal: thermal state
     // =========================================================================
 
     private fun readThermalState(): ThermalState {
-        val kit = ioKit ?: return ThermalState.NOMINAL
-        val core = cf ?: return ThermalState.NOMINAL
-
-        val matchDict = kit.IOServiceMatching("AppleSMC") ?: return ThermalState.NOMINAL
+        val kit = ioKit
+        val core = cf
+        val matchDict = kit?.IOServiceMatching("AppleSMC")
+        if (kit == null || core == null || matchDict == null) return ThermalState.NOMINAL
         val iterator = IntByReference()
         if (kit.IOServiceGetMatchingServices(IOKit.MASTER_PORT, matchDict, iterator) != IOKit.KERN_SUCCESS) {
             return ThermalState.NOMINAL
@@ -545,19 +453,13 @@ class IOKitGPUProvider : GPUProvider {
         val entry = kit.IOIteratorNext(iterator.value)
         kit.IOObjectRelease(iterator.value)
         if (entry == 0) return ThermalState.NOMINAL
-
         try {
             val propsRef = PointerByReference()
-            if (kit.IORegistryEntryCreateCFProperties(entry, propsRef, null, 0) != IOKit.KERN_SUCCESS) {
-                return ThermalState.NOMINAL
-            }
-            val props = propsRef.value ?: return ThermalState.NOMINAL
+            val ok = kit.IORegistryEntryCreateCFProperties(entry, propsRef, null, 0) == IOKit.KERN_SUCCESS
+            val props = propsRef.value.takeIf { ok } ?: return ThermalState.NOMINAL
             try {
-                // Check for common thermal-level keys
-                val level = getLongValue(props, "ThermalLevel")
-                    ?: getLongValue(props, "thermal-level")
-                    ?: return ThermalState.NOMINAL
-                return ThermalState.fromNative(level.toInt())
+                val level = cfDict.getLongValue(props, "ThermalLevel") ?: cfDict.getLongValue(props, "thermal-level")
+                return level?.let { ThermalState.fromNative(it.toInt()) } ?: ThermalState.NOMINAL
             } finally {
                 core.CFRelease(props)
             }
@@ -570,87 +472,99 @@ class IOKitGPUProvider : GPUProvider {
     // CFDictionary helpers
     // =========================================================================
 
-    /** Searches [source] for the first matching key from [candidates] and returns its Double value. */
-    private fun findDoubleMetric(source: Pointer, candidates: List<String>): Double? {
-        for (key in candidates) {
-            val value = getNumberValue(source, key)
-            if (value != null) return value
-        }
-        return null
-    }
-
-    /** Searches [source] for the first matching key from [candidates] and returns its Long value. */
-    private fun findLongMetric(source: Pointer, candidates: List<String>): Long? {
-        for (key in candidates) {
-            val value = getLongValue(source, key)
-            if (value != null) return value
-        }
-        return null
-    }
-
-    /** Retrieves a nested CFDictionary from a parent dictionary. */
-    private fun getDictionaryValue(dict: Pointer, key: String): Pointer? {
-        val core = cf ?: return null
-        val cfKey = core.CFStringCreateWithCString(null, key, CF.kCFStringEncodingUTF8) ?: return null
-        try {
-            val value = core.CFDictionaryGetValue(dict, cfKey) ?: return null
-            return if (core.CFGetTypeID(value) == core.CFDictionaryGetTypeID()) value else null
-        } finally {
-            core.CFRelease(cfKey)
-        }
-    }
-
-    /** Reads a CFNumber as Double from a CFDictionary. */
-    private fun getNumberValue(dict: Pointer, key: String): Double? {
-        val core = cf ?: return null
-        val cfKey = core.CFStringCreateWithCString(null, key, CF.kCFStringEncodingUTF8) ?: return null
-        try {
-            val value = core.CFDictionaryGetValue(dict, cfKey) ?: return null
-            if (core.CFGetTypeID(value) != core.CFNumberGetTypeID()) return null
-            val buf = LongByReference()
-            return if (core.CFNumberGetValue(value, CF.kCFNumberSInt64Type, buf.pointer)) {
-                buf.value.toDouble()
-            } else {
-                null
+    /** Typed reads from CoreFoundation dictionaries. */
+    private inner class CFDict {
+        /** Searches [source] for the first matching key from [candidates] and returns its Double value. */
+        fun findDoubleMetric(source: Pointer, candidates: List<String>): Double? {
+            for (key in candidates) {
+                val value = getNumberValue(source, key)
+                if (value != null) return value
             }
-        } finally {
-            core.CFRelease(cfKey)
+            return null
         }
-    }
 
-    /** Reads a CFNumber as Long from a CFDictionary. */
-    private fun getLongValue(dict: Pointer, key: String): Long? {
-        val core = cf ?: return null
-        val cfKey = core.CFStringCreateWithCString(null, key, CF.kCFStringEncodingUTF8) ?: return null
-        try {
-            val value = core.CFDictionaryGetValue(dict, cfKey) ?: return null
-            if (core.CFGetTypeID(value) != core.CFNumberGetTypeID()) return null
-            val buf = LongByReference()
-            return if (core.CFNumberGetValue(value, CF.kCFNumberSInt64Type, buf.pointer)) {
-                buf.value
-            } else {
-                null
+        /** Searches [source] for the first matching key from [candidates] and returns its Long value. */
+        fun findLongMetric(source: Pointer, candidates: List<String>): Long? {
+            for (key in candidates) {
+                val value = getLongValue(source, key)
+                if (value != null) return value
             }
-        } finally {
-            core.CFRelease(cfKey)
+            return null
         }
-    }
 
-    /** Reads a CFString value from a CFDictionary. */
-    private fun getStringValue(dict: Pointer, key: String): String? {
-        val core = cf ?: return null
-        val cfKey = core.CFStringCreateWithCString(null, key, CF.kCFStringEncodingUTF8) ?: return null
-        try {
-            val value = core.CFDictionaryGetValue(dict, cfKey) ?: return null
-            if (core.CFGetTypeID(value) != core.CFStringGetTypeID()) return null
-            val buf = ByteArray(512)
-            return if (core.CFStringGetCString(value, buf, buf.size, CF.kCFStringEncodingUTF8)) {
-                Native.toString(buf, Charsets.UTF_8.name())
-            } else {
-                null
+        /** Like [findLongMetric] but converts megabyte-valued keys (e.g. `VRAM,totalMB`) to bytes. */
+        fun findMemoryBytes(source: Pointer, candidates: List<String>): Long? {
+            for (key in candidates) {
+                val value = getLongValue(source, key)
+                if (value != null) return GPUMetrics.memoryBytes(key, value)
             }
-        } finally {
-            core.CFRelease(cfKey)
+            return null
+        }
+
+        /** Retrieves a nested CFDictionary from a parent dictionary. */
+        fun getDictionaryValue(dict: Pointer, key: String): Pointer? {
+            val core = cf ?: return null
+            val cfKey = core.CFStringCreateWithCString(null, key, CF.kCFStringEncodingUTF8) ?: return null
+            try {
+                val value = core.CFDictionaryGetValue(dict, cfKey) ?: return null
+                return if (core.CFGetTypeID(value) == core.CFDictionaryGetTypeID()) value else null
+            } finally {
+                core.CFRelease(cfKey)
+            }
+        }
+
+        /** Reads a CFNumber as Double from a CFDictionary. */
+        fun getNumberValue(dict: Pointer, key: String): Double? {
+            val core = cf ?: return null
+            val cfKey = core.CFStringCreateWithCString(null, key, CF.kCFStringEncodingUTF8) ?: return null
+            try {
+                val value = core.CFDictionaryGetValue(dict, cfKey) ?: return null
+                if (core.CFGetTypeID(value) != core.CFNumberGetTypeID()) return null
+                val buf = LongByReference()
+                return if (core.CFNumberGetValue(value, CF.kCFNumberSInt64Type, buf.pointer)) {
+                    buf.value.toDouble()
+                } else {
+                    null
+                }
+            } finally {
+                core.CFRelease(cfKey)
+            }
+        }
+
+        /** Reads a CFNumber as Long from a CFDictionary. */
+        fun getLongValue(dict: Pointer, key: String): Long? {
+            val core = cf ?: return null
+            val cfKey = core.CFStringCreateWithCString(null, key, CF.kCFStringEncodingUTF8) ?: return null
+            try {
+                val value = core.CFDictionaryGetValue(dict, cfKey) ?: return null
+                if (core.CFGetTypeID(value) != core.CFNumberGetTypeID()) return null
+                val buf = LongByReference()
+                return if (core.CFNumberGetValue(value, CF.kCFNumberSInt64Type, buf.pointer)) {
+                    buf.value
+                } else {
+                    null
+                }
+            } finally {
+                core.CFRelease(cfKey)
+            }
+        }
+
+        /** Reads a CFString value from a CFDictionary. */
+        fun getStringValue(dict: Pointer, key: String): String? {
+            val core = cf ?: return null
+            val cfKey = core.CFStringCreateWithCString(null, key, CF.kCFStringEncodingUTF8) ?: return null
+            try {
+                val value = core.CFDictionaryGetValue(dict, cfKey) ?: return null
+                if (core.CFGetTypeID(value) != core.CFStringGetTypeID()) return null
+                val buf = ByteArray(512)
+                return if (core.CFStringGetCString(value, buf, buf.size, CF.kCFStringEncodingUTF8)) {
+                    Native.toString(buf, Charsets.UTF_8.name())
+                } else {
+                    null
+                }
+            } finally {
+                core.CFRelease(cfKey)
+            }
         }
     }
 
@@ -665,19 +579,4 @@ class IOKitGPUProvider : GPUProvider {
         }
     }
 
-    // =========================================================================
-    // Normalization helpers
-    // =========================================================================
-
-    /** Normalizes a percent value that may be 0-100 or 0.0-1.0 to 0.0-1.0. */
-    private fun normalizePercent(value: Double): Double = when {
-        value > 1.0 -> (value / 100.0).coerceIn(0.0, 1.0)
-        else -> value.coerceIn(0.0, 1.0)
-    }
-
-    /** Normalizes power: if value > 1000 assume milliwatts and convert. */
-    private fun normalizePower(value: Double?): Double? {
-        if (value == null) return null
-        return if (value > 1000.0) value / 1000.0 else value
-    }
 }

@@ -11,15 +11,15 @@ object ByteFormatter {
             unitIndex++
         }
         return if (unitIndex == 0) "$bytes B"
-        else String.format("%.1f %s", value, units[unitIndex])
+        else String.format(java.util.Locale.ROOT, "%.1f %s", value, units[unitIndex])
     }
 
     fun formatShort(bytes: Long): String {
         if (bytes < 0) return "N/A"
         return when {
-            bytes >= 1_073_741_824L -> String.format("%.1f GB", bytes / 1_073_741_824.0)
-            bytes >= 1_048_576L -> String.format("%.0f MB", bytes / 1_048_576.0)
-            bytes >= 1024L -> String.format("%.0f KB", bytes / 1024.0)
+            bytes >= 1_073_741_824L -> String.format(java.util.Locale.ROOT, "%.1f GB", bytes / 1_073_741_824.0)
+            bytes >= 1_048_576L -> String.format(java.util.Locale.ROOT, "%.0f MB", bytes / 1_048_576.0)
+            bytes >= 1024L -> String.format(java.util.Locale.ROOT, "%.0f KB", bytes / 1024.0)
             else -> "$bytes B"
         }
     }
