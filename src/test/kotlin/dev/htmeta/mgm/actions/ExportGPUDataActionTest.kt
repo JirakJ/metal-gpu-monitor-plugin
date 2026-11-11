@@ -2,6 +2,7 @@ package dev.htmeta.mgm.actions
 
 import dev.htmeta.mgm.model.GPUSnapshot
 import dev.htmeta.mgm.model.ThermalState
+import dev.htmeta.mgm.model.sample
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -10,52 +11,16 @@ import java.nio.file.Path
 
 class ExportGPUDataActionTest {
 
-    /**
-     * Since the export methods are private, we replicate their logic here
-     * to verify the format is correct. This tests the JSON/CSV format contract.
-     */
-
     @TempDir
     lateinit var tempDir: Path
 
-    private fun snapshotToJson(s: GPUSnapshot): String {
-        return buildString {
-            append("{")
-            append("\"timestamp\":${s.timestamp},")
-            append("\"gpuUtilization\":${s.gpuUtilization},")
-            append("\"gpuFrequencyMHz\":${s.gpuFrequencyMHz ?: "null"},")
-            append("\"memoryAllocatedBytes\":${s.memoryAllocatedBytes},")
-            append("\"memoryTotalBytes\":${s.memoryTotalBytes},")
-            append("\"memoryUtilization\":${s.memoryUtilization},")
-            append("\"thermalState\":\"${s.thermalState.name}\",")
-            append("\"gpuPowerWatts\":${s.gpuPowerWatts ?: "null"},")
-            append("\"renderUtilization\":${s.renderUtilization ?: "null"},")
-            append("\"computeUtilization\":${s.computeUtilization ?: "null"}")
-            append("}")
-        }
-    }
+    private fun snapshotToJson(s: GPUSnapshot): String = GPUDataExporter.snapshotToJson(s)
 
-    private fun exportJson(file: File, current: GPUSnapshot, history: List<GPUSnapshot>) {
-        val sb = StringBuilder()
-        sb.appendLine("{")
-        sb.appendLine("  \"current\": ${snapshotToJson(current)},")
-        sb.appendLine("  \"history\": [")
-        history.forEachIndexed { index, snapshot ->
-            val comma = if (index < history.size - 1) "," else ""
-            sb.appendLine("    ${snapshotToJson(snapshot)}$comma")
-        }
-        sb.appendLine("  ]")
-        sb.appendLine("}")
-        file.writeText(sb.toString())
-    }
+    private fun exportJson(file: File, current: GPUSnapshot, history: List<GPUSnapshot>) =
+        file.writeText(GPUDataExporter.toJson(current, history, "2026-01-01T00:00:00.000+0000"))
 
-    private fun exportCsv(file: File, current: GPUSnapshot, history: List<GPUSnapshot>) {
-        val header = "timestamp,gpuUtilization,gpuFrequencyMHz,memoryAllocatedBytes,memoryTotalBytes,memoryUtilization,thermalState,gpuPowerWatts,renderUtilization,computeUtilization"
-        val rows = (history + current).joinToString("\n") { s ->
-            "${s.timestamp},${s.gpuUtilization},${s.gpuFrequencyMHz ?: ""},${s.memoryAllocatedBytes},${s.memoryTotalBytes},${s.memoryUtilization},${s.thermalState.name},${s.gpuPowerWatts ?: ""},${s.renderUtilization ?: ""},${s.computeUtilization ?: ""}"
-        }
-        file.writeText("$header\n$rows\n")
-    }
+    private fun exportCsv(file: File, current: GPUSnapshot, history: List<GPUSnapshot>) =
+        file.writeText(GPUDataExporter.toCsv(current, history))
 
     @Test
     fun `JSON export contains expected fields`() {
@@ -138,7 +103,8 @@ class ExportGPUDataActionTest {
 
         val lines = file.readLines()
         assertEquals(
-            "timestamp,gpuUtilization,gpuFrequencyMHz,memoryAllocatedBytes,memoryTotalBytes,memoryUtilization,thermalState,gpuPowerWatts,renderUtilization,computeUtilization",
+            "timestamp,gpuUtilization,gpuFrequencyMHz,memoryAllocatedBytes,memoryTotalBytes,memoryUtilization," +
+                "thermalState,gpuPowerWatts,renderUtilization,computeUtilization",
             lines[0]
         )
     }
@@ -210,5 +176,23 @@ class ExportGPUDataActionTest {
         assertTrue(json.startsWith("{"))
         assertTrue(json.endsWith("}"))
         assertTrue(json.contains("\"timestamp\":42"))
+    }
+
+    @Test
+    fun `JSON export carries the export time and escapes it`() {
+        val json = GPUDataExporter.toJson(GPUSnapshot.sample(timestamp = 1L), emptyList(), "a\"b")
+        assertTrue(json.contains("\"exportTime\": \"a\\\"b\","))
+    }
+
+    @Test
+    fun `non-finite numbers are exported as JSON null`() {
+        val json = snapshotToJson(GPUSnapshot.sample(gpuUtilization = Double.NaN, gpuPowerWatts = Double.POSITIVE_INFINITY))
+        assertTrue(json.contains("\"gpuUtilization\":null"))
+        assertTrue(json.contains("\"gpuPowerWatts\":null"))
+    }
+
+    @Test
+    fun `CSV header matches the column list`() {
+        assertEquals(GPUDataExporter.CSV_COLUMNS.size, GPUDataExporter.toCsv(GPUSnapshot.sample(), emptyList()).lines()[1].split(",").size)
     }
 }

@@ -11,12 +11,9 @@ import com.intellij.openapi.components.Storage
 class GPUSettingsState : PersistentStateComponent<GPUSettingsState.State> {
 
     data class State(
-        var refreshIntervalMs: Long = 100,
-        var statusBarEnabled: Boolean = true,
+        var refreshIntervalMs: Long = RefreshIntervals.DEFAULT_MS,
         var statusBarFormat: StatusBarFormat = StatusBarFormat.ICON_PERCENT,
-        var showInToolWindow: Boolean = true,
-        var historyRetentionMinutes: Int = 5,          // Free tier: 5 min
-        var proHistoryRetentionMinutes: Int = 1440,     // Pro tier: 24 hours
+        var historyRetentionMinutes: Int = 5,
         var alertsEnabled: Boolean = true,
         var gpuUtilizationThreshold: Double = 0.8,
         var memoryUtilizationThreshold: Double = 0.9,

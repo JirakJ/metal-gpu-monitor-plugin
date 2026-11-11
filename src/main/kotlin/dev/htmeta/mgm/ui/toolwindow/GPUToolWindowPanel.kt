@@ -1,18 +1,21 @@
 package dev.htmeta.mgm.ui.toolwindow
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.thisLogger
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.JBSplitter
 import com.intellij.util.ui.JBUI
 import dev.htmeta.mgm.model.GPUSnapshot
 import dev.htmeta.mgm.services.GPUMonitoringService
 import dev.htmeta.mgm.settings.GPUSettingsState
+import dev.htmeta.mgm.settings.RefreshIntervals
 import java.awt.BorderLayout
 import javax.swing.*
 
-class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()), Disposable {
+class GPUToolWindowPanel : JPanel(BorderLayout()), Disposable {
 
     private val LOG = thisLogger()
 
@@ -79,34 +82,22 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
             }
         }
 
-        val refreshCombo = JComboBox(arrayOf("50ms", "100ms", "250ms", "500ms", "1s")).apply {
-            val currentMs = GPUSettingsState.getInstance().state.refreshIntervalMs
-            selectedItem = when (currentMs) {
-                50L -> "50ms"
-                100L -> "100ms"
-                250L -> "250ms"
-                500L -> "500ms"
-                1000L -> "1s"
-                else -> "100ms"
-            }
+        val refreshCombo = JComboBox(RefreshIntervals.labels).apply {
+            selectedItem = RefreshIntervals.labelFor(GPUSettingsState.getInstance().state.refreshIntervalMs)
             addActionListener {
-                val ms = when (selectedItem as String) {
-                    "50ms" -> 50L
-                    "100ms" -> 100L
-                    "250ms" -> 250L
-                    "500ms" -> 500L
-                    "1s" -> 1000L
-                    else -> 100L
-                }
-                GPUSettingsState.getInstance().state.refreshIntervalMs = ms
+                GPUSettingsState.getInstance().state.refreshIntervalMs = RefreshIntervals.msFor(selectedItem as? String)
                 GPUMonitoringService.getInstance().restartMonitoring()
                 restartTimer()
             }
         }
 
         val exportButton = JButton("Export").apply {
-            addActionListener {
-                LOG.info("Export requested")
+            toolTipText = "Export the current snapshot and history (format set in Settings | Tools | Metal GPU Monitor)"
+        }
+        exportButton.addActionListener {
+            val action = ActionManager.getInstance().getAction(EXPORT_ACTION_ID)
+            if (action != null) {
+                ActionManager.getInstance().tryToExecute(action, null, exportButton, ActionPlaces.TOOLWINDOW_CONTENT, true)
             }
         }
 
@@ -146,9 +137,7 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
         val processes = service.latestProcesses()
 
         updateCount++
-        if (updateCount <= 5 || updateCount % 100 == 0) {
-            LOG.info("GPUToolWindowPanel: update #$updateCount, GPU=${(snapshot.gpuUtilization * 100).toInt()}%, bufferSize=${chartPanel.bufferSize}")
-        }
+        LOG.debug { "update #$updateCount GPU=${(snapshot.gpuUtilization * 100).toInt()}%" }
 
         infoPanel.updateSnapshot(snapshot, service.deviceInfo())
         chartPanel.addDataPoint(snapshot.gpuUtilization, snapshot.memoryUtilization)
@@ -159,5 +148,9 @@ class GPUToolWindowPanel(private val project: Project) : JPanel(BorderLayout()),
         updateTimer?.stop()
         updateTimer = null
         LOG.info("GPUToolWindowPanel: disposed")
+    }
+
+    private companion object {
+        const val EXPORT_ACTION_ID = "dev.htmeta.mgm.actions.ExportGPUData"
     }
 }

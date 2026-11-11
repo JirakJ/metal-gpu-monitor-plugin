@@ -35,7 +35,9 @@ class ProcessTablePanel : JPanel(BorderLayout()), Disposable {
         tableModel.setData(processes)
     }
 
-    override fun dispose() {}
+    override fun dispose() {
+        // Nothing to release: the table holds no timers or listeners of its own.
+    }
 
     private class ProcessTableModel : AbstractTableModel() {
         private var data: List<ProcessGPUUsage> = emptyList()
@@ -102,8 +104,9 @@ class ProcessTablePanel : JPanel(BorderLayout()), Disposable {
             // Format display values
             text = when (column) {
                 ProcessTableModel.COL_GPU_PCT -> {
+                    // macOS does not expose per-process GPU utilisation; 0 means "not available".
                     val pct = (value as? Double ?: 0.0) * 100
-                    String.format("%.1f%%", pct)
+                    if (pct <= 0.0) "—" else String.format(java.util.Locale.ROOT, "%.1f%%", pct)
                 }
                 ProcessTableModel.COL_GPU_MEM -> {
                     val bytes = value as? Long ?: 0L
@@ -119,9 +122,9 @@ class ProcessTablePanel : JPanel(BorderLayout()), Disposable {
             if (bytes <= 0) return "—"
             val mb = bytes / (1024.0 * 1024.0)
             return if (mb >= 1024) {
-                String.format("%.1f GB", mb / 1024.0)
+                String.format(java.util.Locale.ROOT, "%.1f GB", mb / 1024.0)
             } else {
-                String.format("%.0f MB", mb)
+                String.format(java.util.Locale.ROOT, "%.0f MB", mb)
             }
         }
     }

@@ -12,7 +12,7 @@ class GPUToolWindowFactory : ToolWindowFactory, DumbAware {
     override suspend fun isApplicableAsync(project: Project): Boolean = PlatformDetector.isMacOS()
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val panel = GPUToolWindowPanel(project)
+        val panel = GPUToolWindowPanel()
         val content = ContentFactory.getInstance().createContent(panel, "Monitor", false)
         toolWindow.contentManager.addContent(content)
         @Suppress("SSBasedInspection")

@@ -3,6 +3,7 @@ package dev.htmeta.mgm.services
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.debug
 import com.intellij.openapi.diagnostic.thisLogger
 import dev.htmeta.mgm.model.GPUDeviceInfo
 import dev.htmeta.mgm.model.GPUSnapshot
@@ -58,11 +59,7 @@ class GPUMonitoringService : Disposable {
                     _processes.emit(procs)
 
                     loopCount++
-                    if (loopCount == 1 || loopCount % 100 == 0) {
-                        LOG.info("GPU monitoring loop #$loopCount: GPU=${(snapshot.gpuUtilization * 100).toInt()}%, " +
-                                "Mem=${snapshot.memoryAllocatedBytes / 1024 / 1024}MB, " +
-                                "processes=${procs.size}")
-                    }
+                    LOG.debug { "monitoring loop #$loopCount GPU=${(snapshot.gpuUtilization * 100).toInt()}% processes=${procs.size}" }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {

@@ -5,3 +5,9 @@ build/
 out/
 .DS_Store
 local.properties
+
+# IntelliJ Platform Gradle plugin cache
+.intellijPlatform/
+
+# Secrets
+.env

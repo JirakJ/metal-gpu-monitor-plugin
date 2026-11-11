@@ -26,6 +26,7 @@ class GPUMonitorConfigurable : Configurable {
                 || panel.memoryUtilizationThreshold != state.memoryUtilizationThreshold
                 || panel.alertCooldownSeconds != state.alertCooldownSeconds
                 || panel.alertsEnabled != state.alertsEnabled
+                || panel.exportFormat != state.exportFormat
     }
 
     override fun apply() {
@@ -37,6 +38,7 @@ class GPUMonitorConfigurable : Configurable {
         state.memoryUtilizationThreshold = panel.memoryUtilizationThreshold
         state.alertCooldownSeconds = panel.alertCooldownSeconds
         state.alertsEnabled = panel.alertsEnabled
+        state.exportFormat = panel.exportFormat
     }
 
     override fun reset() {
@@ -48,6 +50,7 @@ class GPUMonitorConfigurable : Configurable {
         panel.memoryUtilizationThreshold = state.memoryUtilizationThreshold
         panel.alertCooldownSeconds = state.alertCooldownSeconds
         panel.alertsEnabled = state.alertsEnabled
+        panel.exportFormat = state.exportFormat
     }
 
     override fun disposeUIResources() {

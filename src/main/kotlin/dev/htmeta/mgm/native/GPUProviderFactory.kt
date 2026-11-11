@@ -21,7 +21,7 @@ class GPUProviderFactory {
                 LOG.warn("IOKit GPU provider failed to initialize, using noop")
                 NoopGPUProvider()
             }
-        } catch (e: UnsatisfiedLinkError) {
+        } catch (e: LinkageError) {
             LOG.warn("JNA not available for IOKit, using noop", e)
             NoopGPUProvider()
         } catch (e: Exception) {

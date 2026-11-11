@@ -9,6 +9,8 @@ class NoopGPUProvider : GPUProvider {
     override fun fetchSnapshot() = GPUSnapshot.UNAVAILABLE
     override fun fetchProcesses() = emptyList<ProcessGPUUsage>()
     override fun deviceInfo() = GPUDeviceInfo.UNKNOWN
-    override fun cleanup() {}
+    override fun cleanup() {
+        // Nothing was acquired, so there is nothing to clean up.
+    }
     override fun isAvailable() = false
 }
